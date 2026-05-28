@@ -179,6 +179,12 @@ a {
   gap: 14px;
 }
 
+.today-learning {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 .section-heading {
   display: flex;
   align-items: flex-end;
@@ -197,6 +203,41 @@ a {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 16px;
+}
+
+.learning-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.learning-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 190px;
+  box-shadow: var(--soft-shadow);
+}
+
+.learning-number {
+  margin: 0;
+  color: var(--primary-strong);
+  font-size: 44px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.learning-copy {
+  margin: 0;
+  color: var(--text-light);
+}
+
+.learning-action {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: auto;
 }
 
 .history-card {
@@ -350,6 +391,13 @@ a {
 .secondary-button:hover {
   background: #cde5dd;
   transform: translateY(-1px);
+}
+
+.secondary-button:disabled {
+  cursor: default;
+  color: var(--text-light);
+  background: #f0ece3;
+  transform: none;
 }
 
 .input-hint {
@@ -531,6 +579,12 @@ a {
 
 .review-link {
   font-size: 14px;
+}
+
+.reader-stepper {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .translation-block,
@@ -721,9 +775,15 @@ a {
 
 .vocabulary-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto auto auto;
+  grid-template-columns: minmax(220px, 1fr) auto auto auto auto;
   gap: 16px;
   align-items: end;
+}
+
+.vocabulary-review-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .search-input {
@@ -857,6 +917,69 @@ a {
   color: var(--text-light);
 }
 
+.review-page {
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.review-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.review-stat {
+  box-shadow: var(--soft-shadow);
+}
+
+.review-stat span {
+  display: block;
+  color: var(--primary-strong);
+  font-size: 38px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.review-stat p {
+  margin: 8px 0 0;
+  color: var(--text-light);
+  font-weight: 800;
+}
+
+.review-card {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.review-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.review-card h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 42px;
+  line-height: 1.1;
+}
+
+.review-answer {
+  min-height: 150px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: #fffdf8;
+}
+
+.review-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 960px) {
   .app-main {
     padding: 30px 16px 48px;
@@ -930,6 +1053,7 @@ a {
   }
 
   .word-header,
+  .review-card-header,
   .panel-heading,
   .reader-actions-row,
   .vocabulary-toolbar {

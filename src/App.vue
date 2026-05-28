@@ -7,6 +7,7 @@
         <RouterLink to="/">Home</RouterLink>
         <RouterLink to="/reader">Reader</RouterLink>
         <RouterLink to="/vocabulary">Vocabulary</RouterLink>
+        <RouterLink to="/review">Review</RouterLink>
       </nav>
     </header>
 

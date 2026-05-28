@@ -26,6 +26,33 @@
       <p class="input-hint">Tip: paste a short paragraph first, then click any sentence or word on the reader page.</p>
     </div>
 
+    <section v-if="words.length || recentArticles.length" class="today-learning">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Today</p>
+          <h2>Learning dashboard</h2>
+        </div>
+      </div>
+
+      <div class="learning-grid">
+        <article class="card learning-card">
+          <p class="field-label">Vocabulary review</p>
+          <p class="learning-number">{{ dueWordCount }}</p>
+          <p class="learning-copy">
+            {{ dueWordCount === 1 ? 'word is due now.' : 'words are due now.' }}
+          </p>
+          <RouterLink class="secondary-button learning-action" to="/review">Start Review</RouterLink>
+        </article>
+
+        <article v-if="latestArticle" class="card learning-card">
+          <p class="field-label">Continue reading</p>
+          <p class="history-title">{{ latestArticle.title }}</p>
+          <p class="history-snippet">{{ latestArticle.snippet }}</p>
+          <button class="secondary-button learning-action" @click="continueArticle(latestArticle)">Continue</button>
+        </article>
+      </div>
+    </section>
+
     <p v-if="historyErrorMessage" class="translation-error">{{ historyErrorMessage }}</p>
 
     <section v-if="recentArticles.length" class="recent-reading">
@@ -60,21 +87,28 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { deleteArticleFromHistory, getArticleHistory, saveArticleToHistory } from '../utils/articleHistory.js'
 import { getStorageItem, setStorageItem } from '../utils/storage.js'
+import { getDueVocabularyWords, getVocabularyWords } from '../utils/vocabulary.js'
 
 const STORAGE_KEY = 'ai-reading-article'
 
 const router = useRouter()
 const article = ref('')
 const recentArticles = ref([])
+const words = ref([])
 const historyErrorMessage = ref('')
+
+const dueVocabularyWords = computed(() => getDueVocabularyWords(words.value))
+const dueWordCount = computed(() => dueVocabularyWords.value.length)
+const latestArticle = computed(() => recentArticles.value[0] || null)
 
 onMounted(() => {
   article.value = getStorageItem(STORAGE_KEY)
   refreshArticleHistory()
+  refreshVocabularyStats()
 })
 
 function startReading() {
@@ -116,6 +150,10 @@ function startReading() {
 
 function refreshArticleHistory() {
   recentArticles.value = getArticleHistory().slice(0, 6)
+}
+
+function refreshVocabularyStats() {
+  words.value = getVocabularyWords()
 }
 
 function continueArticle(item) {

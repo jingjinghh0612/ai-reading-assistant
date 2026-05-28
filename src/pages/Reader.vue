@@ -27,9 +27,18 @@
 
         <div class="reader-actions-row">
           <span v-if="sentenceProgressText" class="progress-pill">{{ sentenceProgressText }}</span>
-          <RouterLink class="secondary-link review-link" :to="{ path: '/vocabulary', query: { status: 'review' } }">
-            Review vocabulary
+          <RouterLink class="secondary-link review-link" to="/review">
+            Review due words
           </RouterLink>
+        </div>
+
+        <div class="reader-stepper">
+          <button class="secondary-button" :disabled="!canSelectPrevious" @click="selectPreviousSentence">
+            Previous
+          </button>
+          <button class="secondary-button" :disabled="!canSelectNext" @click="selectNextSentence">
+            Next
+          </button>
         </div>
 
         <div class="translation-block">
@@ -204,6 +213,9 @@ const sentenceProgressText = computed(() => {
 
   return `Sentence ${selectedIndex.value + 1} of ${sentences.length}`
 })
+
+const canSelectPrevious = computed(() => selectedIndex.value > 0)
+const canSelectNext = computed(() => selectedIndex.value >= 0 && selectedIndex.value < sentences.length - 1)
 
 const selectedWordIsSaved = computed(() => {
   vocabularyVersion.value
@@ -386,6 +398,22 @@ async function selectSentence(index, options = {}) {
       loadingIndex.value = -1
     }
   }
+}
+
+function selectPreviousSentence() {
+  if (!canSelectPrevious.value) {
+    return
+  }
+
+  selectSentence(selectedIndex.value - 1)
+}
+
+function selectNextSentence() {
+  if (!canSelectNext.value) {
+    return
+  }
+
+  selectSentence(selectedIndex.value + 1)
 }
 
 async function selectWord({ word, sentenceIndex }) {

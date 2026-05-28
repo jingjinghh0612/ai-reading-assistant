@@ -34,10 +34,12 @@
 
       <div class="vocabulary-summary">
         <span>{{ words.length }} words</span>
+        <span>{{ dueCount }} due</span>
         <span>{{ reviewCount }} review</span>
         <span>{{ masteredCount }} mastered</span>
       </div>
 
+      <RouterLink class="secondary-button vocabulary-review-link" to="/review">Review Due</RouterLink>
       <button class="danger-button" @click="clearAllWords">Clear All</button>
     </div>
 
@@ -70,6 +72,7 @@
         <p class="word-definition">{{ word.meaning }}</p>
         <p class="word-example">{{ word.example }}</p>
         <p class="word-meta">Added at {{ formatSavedAt(word.savedAt) }}</p>
+        <p v-if="!word.mastered" class="word-meta">Next review {{ formatReviewTime(word.nextReviewAt) }}</p>
       </article>
     </div>
 
@@ -91,6 +94,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import {
   clearVocabularyWords,
   filterVocabularyWords,
+  getDueVocabularyWords,
   getVocabularyWords,
   removeVocabularyWord,
   toggleVocabularyWordMastered,
@@ -129,6 +133,10 @@ const reviewCount = computed(() => {
 
 const masteredCount = computed(() => {
   return words.value.filter((word) => word.mastered).length
+})
+
+const dueCount = computed(() => {
+  return getDueVocabularyWords(words.value).length
 })
 
 function getInitialStatusFilter(status) {
@@ -177,6 +185,21 @@ function formatSavedAt(savedAt) {
 
   return new Intl.DateTimeFormat('en', {
     year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
+function formatReviewTime(value) {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return 'soon'
+  }
+
+  return new Intl.DateTimeFormat('en', {
     month: 'short',
     day: '2-digit',
     hour: '2-digit',
