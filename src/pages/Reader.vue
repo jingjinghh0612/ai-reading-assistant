@@ -25,6 +25,13 @@
           {{ selectedSentence || 'Click a sentence on the left first.' }}
         </p>
 
+        <div class="reader-actions-row">
+          <span v-if="sentenceProgressText" class="progress-pill">{{ sentenceProgressText }}</span>
+          <RouterLink class="secondary-link review-link" :to="{ path: '/vocabulary', query: { status: 'review' } }">
+            Review vocabulary
+          </RouterLink>
+        </div>
+
         <div class="translation-block">
           <p class="field-label">Chinese translation</p>
 
@@ -138,6 +145,7 @@ import { requestSummary } from '../api/summarize.js'
 import { requestTranslation } from '../api/translate.js'
 import { requestWordExplanation } from '../api/word.js'
 import SentenceViewer from '../components/SentenceViewer.vue'
+import { getArticleById, updateArticleProgress } from '../utils/articleHistory.js'
 import { splitIntoSentences } from '../utils/sentence.js'
 import { getStorageItem } from '../utils/storage.js'
 import { getCachedTranslation, saveCachedTranslation } from '../utils/translationCache.js'
@@ -147,10 +155,12 @@ import { normalizeWord } from '../utils/word.js'
 const STORAGE_KEY = 'ai-reading-article'
 
 const route = useRoute()
+const routeArticleId = typeof route.query.articleId === 'string' ? route.query.articleId : ''
+const savedArticle = routeArticleId ? getArticleById(routeArticleId) : null
 const routeArticle = typeof route.query.text === 'string' ? route.query.text : ''
-const article = routeArticle || getStorageItem(STORAGE_KEY)
+const article = savedArticle?.content || routeArticle || getStorageItem(STORAGE_KEY)
 const sentences = splitIntoSentences(article)
-const selectedIndex = ref(-1)
+const selectedIndex = ref(getInitialSelectedIndex())
 const loadingIndex = ref(-1)
 const isLoading = ref(false)
 const translation = ref('')
@@ -187,6 +197,14 @@ const selectedSentence = computed(() => {
   return sentences[selectedIndex.value] || ''
 })
 
+const sentenceProgressText = computed(() => {
+  if (selectedIndex.value < 0 || !sentences.length) {
+    return ''
+  }
+
+  return `Sentence ${selectedIndex.value + 1} of ${sentences.length}`
+})
+
 const selectedWordIsSaved = computed(() => {
   vocabularyVersion.value
 
@@ -216,6 +234,22 @@ function hasCachedValue(cache, key) {
 
 function getErrorMessage(error, fallbackMessage) {
   return error instanceof Error && error.message ? error.message : fallbackMessage
+}
+
+function getInitialSelectedIndex() {
+  if (!savedArticle || !sentences.length) {
+    return -1
+  }
+
+  return Math.min(savedArticle.currentSentenceIndex, sentences.length - 1)
+}
+
+function saveReadingProgress(index) {
+  if (!routeArticleId) {
+    return
+  }
+
+  updateArticleProgress(routeArticleId, index)
 }
 
 function getTranslation(sentence) {
@@ -312,6 +346,7 @@ async function selectSentence(index, options = {}) {
   }
 
   selectedIndex.value = index
+  saveReadingProgress(index)
 
   const cachedTranslation = translationCache[cacheKey] || getCachedTranslation(sentence)
 
