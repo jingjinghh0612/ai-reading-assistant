@@ -17,8 +17,24 @@
         />
       </div>
 
+      <div class="filter-group">
+        <p class="field-label">Review status</p>
+        <div class="segmented-control">
+          <button
+            v-for="option in statusOptions"
+            :key="option.value"
+            class="filter-button"
+            :class="{ active: statusFilter === option.value }"
+            @click="setStatusFilter(option.value)"
+          >
+            {{ option.label }}
+          </button>
+        </div>
+      </div>
+
       <div class="vocabulary-summary">
         <span>{{ words.length }} words</span>
+        <span>{{ reviewCount }} review</span>
         <span>{{ masteredCount }} mastered</span>
       </div>
 
@@ -58,8 +74,8 @@
     </div>
 
     <div v-else-if="words.length" class="card placeholder-card">
-      <p>No words match your search.</p>
-      <button class="secondary-button" @click="searchText = ''">Clear Search</button>
+      <p>No words match your filters.</p>
+      <button class="secondary-button" @click="clearFilters">Clear Filters</button>
     </div>
 
     <div v-else class="card placeholder-card">
@@ -71,41 +87,66 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import {
   clearVocabularyWords,
+  filterVocabularyWords,
   getVocabularyWords,
   removeVocabularyWord,
   toggleVocabularyWordMastered,
 } from '../utils/vocabulary.js'
 
+const route = useRoute()
 const words = ref(getVocabularyWords())
 const searchText = ref('')
 const errorMessage = ref('')
+const statusOptions = [
+  {
+    value: 'all',
+    label: 'All',
+  },
+  {
+    value: 'review',
+    label: 'Review',
+  },
+  {
+    value: 'mastered',
+    label: 'Mastered',
+  },
+]
+const statusFilter = ref(getInitialStatusFilter(route.query.status))
 
 const filteredWords = computed(() => {
-  const keyword = searchText.value.trim().toLowerCase()
-
-  if (!keyword) {
-    return words.value
-  }
-
-  return words.value.filter((item) => {
-    return (
-      item.word.toLowerCase().includes(keyword) ||
-      item.normalizedWord.includes(keyword) ||
-      item.meaning.toLowerCase().includes(keyword)
-    )
+  return filterVocabularyWords(words.value, {
+    query: searchText.value,
+    status: statusFilter.value,
   })
+})
+
+const reviewCount = computed(() => {
+  return words.value.filter((word) => !word.mastered).length
 })
 
 const masteredCount = computed(() => {
   return words.value.filter((word) => word.mastered).length
 })
 
+function getInitialStatusFilter(status) {
+  return statusOptions.some((option) => option.value === status) ? status : 'all'
+}
+
 function updateWords(result) {
   words.value = result.words
   errorMessage.value = result.error || ''
+}
+
+function setStatusFilter(status) {
+  statusFilter.value = getInitialStatusFilter(status)
+}
+
+function clearFilters() {
+  searchText.value = ''
+  statusFilter.value = 'all'
 }
 
 function deleteWord(word) {

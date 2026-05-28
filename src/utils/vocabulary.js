@@ -175,3 +175,30 @@ export function isWordSaved(word) {
   const normalizedWord = normalizeWord(word || '')
   return getVocabularyWords().some((item) => item.normalizedWord === normalizedWord)
 }
+
+export function filterVocabularyWords(words, options = {}) {
+  const keyword = String(options.query || '').trim().toLowerCase()
+  const status = options.status || 'all'
+
+  return words.filter((item) => {
+    const matchesStatus =
+      status === 'all' ||
+      (status === 'review' && !item.mastered) ||
+      (status === 'mastered' && item.mastered)
+
+    if (!matchesStatus) {
+      return false
+    }
+
+    if (!keyword) {
+      return true
+    }
+
+    return (
+      item.word.toLowerCase().includes(keyword) ||
+      item.normalizedWord.includes(keyword) ||
+      item.meaning.toLowerCase().includes(keyword) ||
+      item.partOfSpeech.toLowerCase().includes(keyword)
+    )
+  })
+}
