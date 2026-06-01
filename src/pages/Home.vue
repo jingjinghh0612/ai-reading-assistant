@@ -72,7 +72,7 @@
 
           <div class="history-meta">
             <span>{{ formatHistoryTime(item.updatedAt) }}</span>
-            <span>{{ getProgressLabel(item) }}</span>
+            <span>{{ getArticleProgressLabel(item) }}</span>
           </div>
 
           <div class="history-actions">
@@ -89,7 +89,12 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
-import { deleteArticleFromHistory, getArticleHistory, saveArticleToHistory } from '../utils/articleHistory.js'
+import {
+  deleteArticleFromHistory,
+  getArticleHistory,
+  getArticleProgressLabel,
+  saveArticleToHistory,
+} from '../utils/articleHistory.js'
 import { getStorageItem, setStorageItem } from '../utils/storage.js'
 import { getDueVocabularyWords, getVocabularyWords } from '../utils/vocabulary.js'
 
@@ -176,14 +181,6 @@ function deleteArticle(item) {
 
   historyErrorMessage.value = result.error || ''
   recentArticles.value = result.articles.slice(0, 6)
-}
-
-function getProgressLabel(item) {
-  if (!item.currentSentenceIndex) {
-    return 'Not started'
-  }
-
-  return `Sentence ${item.currentSentenceIndex + 1}`
 }
 
 function formatHistoryTime(value) {

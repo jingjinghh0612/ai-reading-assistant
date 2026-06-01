@@ -36,13 +36,13 @@ describe('vocabulary utilities', () => {
   it('filters saved words by review status and search text', () => {
     saveVocabularyWord({
       word: 'Practice',
-      meaning: '练习',
+      meaning: '练习；实践',
       partOfSpeech: 'noun',
       example: 'Practice helps.',
     })
     saveVocabularyWord({
       word: 'Mastered',
-      meaning: '掌握的',
+      meaning: '已掌握的',
       partOfSpeech: 'adjective',
       example: 'This word is mastered.',
     })
@@ -66,7 +66,7 @@ describe('vocabulary utilities', () => {
       JSON.stringify([
         {
           word: 'Legacy',
-          meaning: '旧数据',
+          meaning: '历史旧数据',
           partOfSpeech: 'noun',
           example: 'Legacy data still works.',
           savedAt: '2026-05-01T00:00:00.000Z',
@@ -90,7 +90,7 @@ describe('vocabulary utilities', () => {
   it('records remembered reviews with spaced intervals and marks the final stage mastered', () => {
     saveVocabularyWord({
       word: 'Practice',
-      meaning: '练习',
+      meaning: '练习；实践',
       partOfSpeech: 'noun',
       example: 'Practice helps.',
     })
@@ -124,7 +124,7 @@ describe('vocabulary utilities', () => {
   it('records forgotten reviews by resetting the review stage to tomorrow', () => {
     saveVocabularyWord({
       word: 'Difficult',
-      meaning: '困难的',
+      meaning: '困难的；费力的',
       partOfSpeech: 'adjective',
       example: 'This is a difficult word.',
     })

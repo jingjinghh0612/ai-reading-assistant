@@ -3,7 +3,10 @@ import { beforeEach, describe, it } from 'node:test'
 import {
   ARTICLE_HISTORY_STORAGE_KEY,
   deleteArticleFromHistory,
+  getArticleById,
   getArticleHistory,
+  getArticleProgressLabel,
+  getResumeSentenceIndex,
   saveArticleToHistory,
   updateArticleProgress,
 } from './articleHistory.js'
@@ -44,14 +47,46 @@ describe('article history', () => {
     const result = saveArticleToHistory('First line title.\nSecond sentence for the reader.')
 
     assert.equal(result.article.title, 'First line title.')
-    assert.equal(result.article.currentSentenceIndex, 0)
+    assert.equal(result.article.currentSentenceIndex, null)
     assert.equal(result.articles.length, 1)
     assert.equal(getArticleHistory()[0].id, result.article.id)
 
-    const progressResult = updateArticleProgress(result.article.id, 2)
+    const progressResult = updateArticleProgress(result.article.id, 0)
 
-    assert.equal(progressResult.article.currentSentenceIndex, 2)
-    assert.equal(getArticleHistory()[0].currentSentenceIndex, 2)
+    assert.equal(progressResult.article.currentSentenceIndex, 0)
+    assert.equal(getArticleHistory()[0].currentSentenceIndex, 0)
+  })
+
+  it('formats zero-based reading progress without treating sentence one as not started', () => {
+    assert.equal(getArticleProgressLabel({ currentSentenceIndex: null }), 'Not started')
+    assert.equal(getArticleProgressLabel({ currentSentenceIndex: 0 }), 'Sentence 1')
+    assert.equal(getArticleProgressLabel({ currentSentenceIndex: 2 }), 'Sentence 3')
+  })
+
+  it('restores only valid saved sentence positions', () => {
+    assert.equal(getResumeSentenceIndex({ currentSentenceIndex: null }, 3), -1)
+    assert.equal(getResumeSentenceIndex({ currentSentenceIndex: 0 }, 3), 0)
+    assert.equal(getResumeSentenceIndex({ currentSentenceIndex: 2 }, 3), 2)
+    assert.equal(getResumeSentenceIndex({ currentSentenceIndex: 9 }, 3), 2)
+    assert.equal(getResumeSentenceIndex({ currentSentenceIndex: 'bad' }, 3), -1)
+    assert.equal(getResumeSentenceIndex({ currentSentenceIndex: 0 }, 0), -1)
+  })
+
+  it('round-trips saved progress for Home labels and Reader resume positions', () => {
+    const saved = saveArticleToHistory('First sentence. Second sentence. Third sentence.')
+
+    assert.equal(getArticleProgressLabel(getArticleById(saved.article.id)), 'Not started')
+    assert.equal(getResumeSentenceIndex(getArticleById(saved.article.id), 3), -1)
+
+    updateArticleProgress(saved.article.id, 0)
+
+    assert.equal(getArticleProgressLabel(getArticleById(saved.article.id)), 'Sentence 1')
+    assert.equal(getResumeSentenceIndex(getArticleById(saved.article.id), 3), 0)
+
+    updateArticleProgress(saved.article.id, 2)
+
+    assert.equal(getArticleProgressLabel(getArticleById(saved.article.id)), 'Sentence 3')
+    assert.equal(getResumeSentenceIndex(getArticleById(saved.article.id), 3), 2)
   })
 
   it('deduplicates the same article content while keeping saved progress', () => {

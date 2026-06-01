@@ -248,34 +248,34 @@ function parseJsonObject(text) {
 
 const MOCK_WORDS = {
   learn: {
-    meaning: '\u5b66\u4e60\uff1b\u638c\u63e1',
+    meaning: '学习；掌握',
     partOfSpeech: 'verb',
     example: 'I learn English by reading every day.',
   },
   reading: {
-    meaning: '\u9605\u8bfb\uff1b\u8bfb\u7269',
+    meaning: '阅读；读物',
     partOfSpeech: 'noun',
     example: 'Reading helps you notice useful sentence patterns.',
   },
   language: {
-    meaning: '\u8bed\u8a00',
+    meaning: '语言',
     partOfSpeech: 'noun',
     example: 'Language becomes easier when you meet it often.',
   },
   important: {
-    meaning: '\u91cd\u8981\u7684',
+    meaning: '重要的',
     partOfSpeech: 'adjective',
     example: 'It is important to review new words.',
   },
   practice: {
-    meaning: '\u7ec3\u4e60\uff1b\u5b9e\u8df5',
+    meaning: '练习；实践',
     partOfSpeech: 'noun / verb',
     example: 'Practice makes difficult words feel familiar.',
   },
 }
 
 function mockTranslateSentence(text) {
-  return `\u6a21\u62df\u7ffb\u8bd1\uff1a${text}`
+  return `模拟翻译：${text}`
 }
 
 function mockExplainWord(word) {
@@ -291,7 +291,7 @@ function mockExplainWord(word) {
 
   return {
     word,
-    meaning: `\u5173\u4e8e "${word}" \u7684\u6a21\u62df\u91ca\u4e49`,
+    meaning: `关于 "${word}" 的模拟释义`,
     partOfSpeech: 'unknown',
     example: `Try to understand "${word}" from the full sentence.`,
   }
@@ -301,7 +301,7 @@ function mockSummarizeText(text) {
   const shortText = text.length > 80 ? `${text.slice(0, 80)}...` : text
 
   return {
-    summary: `\u6a21\u62df\u6458\u8981\uff1a${shortText}`,
+    summary: `模拟摘要：${shortText}`,
     keywords: ['reading', 'english', 'practice'],
   }
 }

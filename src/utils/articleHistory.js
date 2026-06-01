@@ -34,8 +34,12 @@ function createArticleId(content) {
 }
 
 function normalizeSentenceIndex(index) {
+  if (index === null || index === undefined || index === '' || typeof index === 'boolean') {
+    return null
+  }
+
   const number = Number(index)
-  return Number.isInteger(number) && number > 0 ? number : 0
+  return Number.isInteger(number) && number >= 0 ? number : null
 }
 
 function createTitle(content) {
@@ -120,6 +124,27 @@ export function getArticleHistory() {
 
 export function getArticleById(articleId) {
   return getArticleHistory().find((article) => article.id === articleId) || null
+}
+
+export function getArticleProgressLabel(article) {
+  const sentenceIndex = normalizeSentenceIndex(article?.currentSentenceIndex)
+
+  if (sentenceIndex === null) {
+    return 'Not started'
+  }
+
+  return `Sentence ${sentenceIndex + 1}`
+}
+
+export function getResumeSentenceIndex(article, sentenceCount) {
+  const sentenceIndex = normalizeSentenceIndex(article?.currentSentenceIndex)
+  const count = Number(sentenceCount)
+
+  if (sentenceIndex === null || !Number.isInteger(count) || count <= 0) {
+    return -1
+  }
+
+  return Math.min(sentenceIndex, count - 1)
 }
 
 export function saveArticleToHistory(content) {

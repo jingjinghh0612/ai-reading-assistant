@@ -154,7 +154,7 @@ import { requestSummary } from '../api/summarize.js'
 import { requestTranslation } from '../api/translate.js'
 import { requestWordExplanation } from '../api/word.js'
 import SentenceViewer from '../components/SentenceViewer.vue'
-import { getArticleById, updateArticleProgress } from '../utils/articleHistory.js'
+import { getArticleById, getResumeSentenceIndex, updateArticleProgress } from '../utils/articleHistory.js'
 import { splitIntoSentences } from '../utils/sentence.js'
 import { getStorageItem } from '../utils/storage.js'
 import { getCachedTranslation, saveCachedTranslation } from '../utils/translationCache.js'
@@ -169,7 +169,7 @@ const savedArticle = routeArticleId ? getArticleById(routeArticleId) : null
 const routeArticle = typeof route.query.text === 'string' ? route.query.text : ''
 const article = savedArticle?.content || routeArticle || getStorageItem(STORAGE_KEY)
 const sentences = splitIntoSentences(article)
-const selectedIndex = ref(getInitialSelectedIndex())
+const selectedIndex = ref(getResumeSentenceIndex(savedArticle, sentences.length))
 const loadingIndex = ref(-1)
 const isLoading = ref(false)
 const translation = ref('')
@@ -246,14 +246,6 @@ function hasCachedValue(cache, key) {
 
 function getErrorMessage(error, fallbackMessage) {
   return error instanceof Error && error.message ? error.message : fallbackMessage
-}
-
-function getInitialSelectedIndex() {
-  if (!savedArticle || !sentences.length) {
-    return -1
-  }
-
-  return Math.min(savedArticle.currentSentenceIndex, sentences.length - 1)
 }
 
 function saveReadingProgress(index) {
