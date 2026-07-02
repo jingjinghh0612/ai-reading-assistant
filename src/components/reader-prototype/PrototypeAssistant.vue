@@ -1,0 +1,159 @@
+<template>
+  <aside class="prototype-assistant word-definition-panel" aria-label="单词释义">
+    <header class="word-panel-header">
+      <div>
+        <p>本地词典</p>
+        <h2>单词释义</h2>
+      </div>
+    </header>
+
+    <div class="word-panel-body">
+      <section v-if="word" class="word-entry-card">
+        <div class="word-entry-hero">
+          <div class="word-title-group">
+            <h3>{{ word.word }}</h3>
+            <span class="word-phonetic">{{ word.phonetic }}</span>
+          </div>
+          <span class="word-part">{{ word.partOfSpeech }}</span>
+        </div>
+
+        <p class="word-meaning">{{ word.meaning }}</p>
+        <p class="word-explanation">{{ word.explanation }}</p>
+
+        <dl class="word-detail-list">
+          <div>
+            <dt>例句</dt>
+            <dd>
+              <p class="word-example-text">{{ word.example }}</p>
+              <p v-if="word.exampleTranslation" class="word-example-translation">
+                {{ word.exampleTranslation }}
+              </p>
+            </dd>
+          </div>
+          <div v-if="word.forms?.length">
+            <dt>词形</dt>
+            <dd class="word-form-list">
+              <span v-for="form in word.forms" :key="form">{{ form }}</span>
+            </dd>
+          </div>
+          <div>
+            <dt>原文句子</dt>
+            <dd>
+              <p>{{ word.sourceSentence }}</p>
+              <p v-if="word.sourceTranslation" class="word-source-translation">
+                {{ word.sourceTranslation }}
+              </p>
+            </dd>
+          </div>
+        </dl>
+
+        <button
+          class="wordbook-button"
+          :class="{ added: isAdded }"
+          type="button"
+          @click="$emit(isAdded ? 'remove-word' : 'add-word')"
+        >
+          {{ isAdded ? '移出生词本' : '加入生词本' }}
+        </button>
+
+        <button
+          class="wordbook-link-button"
+          type="button"
+          @click="$emit('show-wordbook')"
+        >
+          查看本地生词本
+        </button>
+
+        <p v-if="message" class="wordbook-message">{{ message }}</p>
+      </section>
+
+      <section v-else class="word-panel-empty">
+        <div class="chapter-vocabulary-heading">
+          <strong>本章重点词</strong>
+          <span>{{ vocabulary.length }} 个</span>
+        </div>
+        <p>点击词条查看释义，并定位到它在正文中首次出现的段落。</p>
+
+        <div class="chapter-vocabulary-list">
+          <button
+            v-for="item in vocabulary"
+            :key="item.wordKey"
+            class="chapter-vocabulary-item"
+            type="button"
+            @click="$emit('select-word', item.selection)"
+          >
+            <span class="chapter-vocabulary-main">
+              <strong>{{ item.word }}</strong>
+              <small>{{ item.partOfSpeech }} · {{ item.meaning }}</small>
+            </span>
+            <span class="chapter-vocabulary-meta">
+              <span v-if="item.isAdded">已加入</span>
+              <span>{{ item.count }} 次</span>
+            </span>
+          </button>
+        </div>
+
+        <section class="local-wordbook-panel">
+          <div class="local-wordbook-heading">
+            <strong>本地生词本</strong>
+            <span>{{ wordbook.length }} 个</span>
+          </div>
+          <p v-if="!wordbook.length" class="local-wordbook-empty">本轮还没有加入生词</p>
+
+          <div v-else class="local-wordbook-list">
+            <div
+              v-for="item in wordbook"
+              :key="item.wordKey"
+              class="local-wordbook-item"
+            >
+              <button
+                class="local-wordbook-select"
+                type="button"
+                @click="$emit('select-word', item.selection)"
+              >
+                <span>
+                  <strong>{{ item.word }}</strong>
+                  <small>{{ item.partOfSpeech }} · {{ item.meaning }}</small>
+                </span>
+              </button>
+              <button
+                class="local-wordbook-remove"
+                type="button"
+                @click.stop="$emit('remove-word', item.wordKey)"
+              >
+                移出
+              </button>
+            </div>
+          </div>
+        </section>
+      </section>
+    </div>
+  </aside>
+</template>
+
+<script setup>
+defineProps({
+  word: {
+    type: Object,
+    default: null,
+  },
+  vocabulary: {
+    type: Array,
+    default: () => [],
+  },
+  wordbook: {
+    type: Array,
+    default: () => [],
+  },
+  isAdded: {
+    type: Boolean,
+    default: false,
+  },
+  message: {
+    type: String,
+    default: '',
+  },
+})
+
+defineEmits(['add-word', 'remove-word', 'select-word', 'show-wordbook'])
+</script>

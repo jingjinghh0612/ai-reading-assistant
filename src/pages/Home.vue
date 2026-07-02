@@ -1,54 +1,55 @@
 <template>
   <section class="page home-page">
     <div class="page-intro home-hero">
-      <p class="eyebrow">AI Reading Coach</p>
-      <h1>Paste an English article. Read it sentence by sentence.</h1>
+      <p class="eyebrow">{{ t('home.eyebrow') }}</p>
+      <h1>{{ t('home.title') }}</h1>
       <p class="page-description">
-        Built for English beginners: translate sentences, explain words, and save useful vocabulary while you read.
+        {{ t('home.description') }}
       </p>
     </div>
 
     <div class="card home-card">
-      <label class="field-label" for="article-input">English article</label>
+      <label class="field-label" for="article-input">{{ t('home.inputLabel') }}</label>
       <textarea
         id="article-input"
         v-model="article"
         class="article-input"
-        placeholder="Please paste your English article here."
+        :placeholder="t('home.placeholder')"
         rows="12"
       />
 
       <div class="actions">
-        <button class="primary-button" @click="startReading">Start Reading</button>
-        <RouterLink class="secondary-link" to="/vocabulary">Open Vocabulary</RouterLink>
+        <button class="primary-button" @click="startReading">{{ t('home.start') }}</button>
+        <RouterLink class="secondary-link" to="/vocabulary">{{ t('home.openVocabulary') }}</RouterLink>
       </div>
 
-      <p class="input-hint">Tip: paste a short paragraph first, then click any sentence or word on the reader page.</p>
+      <p class="input-hint">{{ t('home.inputHint') }}</p>
     </div>
 
     <section v-if="words.length || recentArticles.length" class="today-learning">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Today</p>
-          <h2>Learning dashboard</h2>
+          <h2>{{ t('home.todayTitle') }}</h2>
         </div>
       </div>
 
       <div class="learning-grid">
         <article class="card learning-card">
-          <p class="field-label">Vocabulary review</p>
+          <p class="field-label">{{ t('home.vocabularyReview') }}</p>
           <p class="learning-number">{{ dueWordCount }}</p>
           <p class="learning-copy">
-            {{ dueWordCount === 1 ? 'word is due now.' : 'words are due now.' }}
+            {{ t('home.dueWords', { count: dueWordCount }) }}
           </p>
-          <RouterLink class="secondary-button learning-action" to="/review">Start Review</RouterLink>
+          <RouterLink class="secondary-button learning-action" to="/review">{{ t('home.startReview') }}</RouterLink>
         </article>
 
         <article v-if="latestArticle" class="card learning-card">
-          <p class="field-label">Continue reading</p>
+          <p class="field-label">{{ t('home.continueReading') }}</p>
           <p class="history-title">{{ latestArticle.title }}</p>
           <p class="history-snippet">{{ latestArticle.snippet }}</p>
-          <button class="secondary-button learning-action" @click="continueArticle(latestArticle)">Continue</button>
+          <button class="secondary-button learning-action" @click="continueArticle(latestArticle)">
+            {{ t('home.continue') }}
+          </button>
         </article>
       </div>
     </section>
@@ -58,8 +59,7 @@
     <section v-if="recentArticles.length" class="recent-reading">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">History</p>
-          <h2>Recent reading</h2>
+          <h2>{{ t('home.historyTitle') }}</h2>
         </div>
       </div>
 
@@ -72,13 +72,13 @@
 
           <div class="history-meta">
             <span>{{ formatHistoryTime(item.updatedAt) }}</span>
-            <span>{{ getArticleProgressLabel(item) }}</span>
+            <span>{{ getArticleProgressText(item) }}</span>
           </div>
 
           <div class="history-actions">
-            <button class="secondary-button" @click="continueArticle(item)">Continue</button>
-            <button class="secondary-button" @click="fillArticle(item)">Fill in</button>
-            <button class="danger-button" @click="deleteArticle(item)">Delete</button>
+            <button class="secondary-button" @click="continueArticle(item)">{{ t('home.continue') }}</button>
+            <button class="secondary-button" @click="fillArticle(item)">{{ t('home.fillIn') }}</button>
+            <button class="danger-button" @click="deleteArticle(item)">{{ t('home.delete') }}</button>
           </div>
         </article>
       </div>
@@ -92,9 +92,9 @@ import { useRouter, RouterLink } from 'vue-router'
 import {
   deleteArticleFromHistory,
   getArticleHistory,
-  getArticleProgressLabel,
   saveArticleToHistory,
 } from '../utils/articleHistory.js'
+import { getArticleProgressText, locale, t } from '../utils/locale.js'
 import { getStorageItem, setStorageItem } from '../utils/storage.js'
 import { getDueVocabularyWords, getVocabularyWords } from '../utils/vocabulary.js'
 
@@ -120,7 +120,7 @@ function startReading() {
   const content = article.value.trim()
 
   if (!content) {
-    window.alert('Please enter an English article first.')
+    window.alert(t('home.emptyAlert'))
     return
   }
 
@@ -187,10 +187,10 @@ function formatHistoryTime(value) {
   const date = new Date(value)
 
   if (Number.isNaN(date.getTime())) {
-    return 'Unknown time'
+    return t('common.unknownTime')
   }
 
-  return new Intl.DateTimeFormat('en', {
+  return new Intl.DateTimeFormat(locale.value === 'zh' ? 'zh-CN' : 'en', {
     month: 'short',
     day: '2-digit',
     hour: '2-digit',

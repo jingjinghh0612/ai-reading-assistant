@@ -249,26 +249,31 @@ function parseJsonObject(text) {
 const MOCK_WORDS = {
   learn: {
     meaning: '学习；掌握',
+    definition: 'To get knowledge or skill by study or practice.',
     partOfSpeech: 'verb',
     example: 'I learn English by reading every day.',
   },
   reading: {
     meaning: '阅读；读物',
+    definition: 'The activity of looking at and understanding written words.',
     partOfSpeech: 'noun',
     example: 'Reading helps you notice useful sentence patterns.',
   },
   language: {
     meaning: '语言',
+    definition: 'A system of words people use to communicate.',
     partOfSpeech: 'noun',
     example: 'Language becomes easier when you meet it often.',
   },
   important: {
     meaning: '重要的',
+    definition: 'Having great value or effect.',
     partOfSpeech: 'adjective',
     example: 'It is important to review new words.',
   },
   practice: {
     meaning: '练习；实践',
+    definition: 'Repeated activity that helps you improve a skill.',
     partOfSpeech: 'noun / verb',
     example: 'Practice makes difficult words feel familiar.',
   },
@@ -291,9 +296,10 @@ function mockExplainWord(word) {
 
   return {
     word,
-    meaning: `关于 "${word}" 的模拟释义`,
-    partOfSpeech: 'unknown',
-    example: `Try to understand "${word}" from the full sentence.`,
+    meaning: '',
+    definition: '',
+    partOfSpeech: '',
+    example: '',
   }
 }
 
@@ -358,8 +364,9 @@ export async function explainWord(word) {
 
   return {
     word: parsed.word || word,
-    meaning: parsed.meaning || parsed.definition || '',
-    partOfSpeech: parsed.partOfSpeech || 'unknown',
+    meaning: parsed.meaning || '',
+    definition: parsed.definition || '',
+    partOfSpeech: parsed.partOfSpeech?.toLowerCase?.() === 'unknown' ? '' : parsed.partOfSpeech || '',
     example: parsed.example || '',
   }
 }

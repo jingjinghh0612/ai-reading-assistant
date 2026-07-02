@@ -1,74 +1,98 @@
 <template>
-  <section class="page reader-page">
-    <div class="page-intro">
-      <p class="eyebrow">Reader</p>
-      <h1>Read with translation, word notes, and summary</h1>
+  <section class="page reader-page" :class="{ 'has-article': sentences.length }">
+    <div v-if="sentences.length" class="reader-session-header">
+      <div>
+        <p class="eyebrow">{{ t('reader.eyebrow') }}</p>
+        <h1>{{ readerTitle }}</h1>
+      </div>
+
+      <span v-if="sentenceProgressText" class="progress-pill">{{ sentenceProgressText }}</span>
+    </div>
+
+    <div v-else class="page-intro">
+      <p class="eyebrow">{{ t('reader.eyebrow') }}</p>
+      <h1>{{ t('reader.title') }}</h1>
       <p class="page-description">
-        Click a sentence to translate it. Click a word to see its meaning and save it to your vocabulary.
+        {{ t('reader.description') }}
       </p>
     </div>
 
-    <div v-if="sentences.length" class="reader-layout">
-      <SentenceViewer
-        :sentences="sentences"
-        :selected-index="selectedIndex"
-        :loading-index="loadingIndex"
-        :selected-word="selectedWord"
-        :loading-word="loadingWord"
-        @select="selectSentence"
-        @select-word="selectWord"
-      />
+    <div v-if="sentences.length" class="reader-layout" :style="readerFontSizeStyle">
+      <section class="reader-main-column">
+        <div class="reader-paper">
+          <SentenceViewer
+            :sentences="sentences"
+            :selected-index="selectedIndex"
+            :selected-sentence="selectedSentence"
+            :loading-index="loadingIndex"
+            :translation="translation"
+            :is-translation-loading="isLoading"
+            :translation-error-message="errorMessage"
+            :show-translation-card="translationCardVisible"
+            :selected-word="selectedWord"
+            :selected-word-detail="selectedWordDetail"
+            :selected-word-is-saved="selectedWordIsSaved"
+            :is-word-loading="isWordLoading"
+            :loading-word="loadingWord"
+            :word-error-message="wordErrorMessage"
+            :vocabulary-message="vocabularyMessage"
+            :vocabulary-message-type="vocabularyMessageType"
+            :font-size="readerFontSize"
+            :can-decrease-font-size="canDecreaseReaderFontSize"
+            :can-increase-font-size="canIncreaseReaderFontSize"
+            @select="selectSentence"
+            @select-word="selectWord"
+            @retry-translation="retrySelectedSentence"
+            @close-translation-card="hideTranslationCard"
+            @add-word="addSelectedWordToVocabulary"
+            @retry-word="retrySelectedWord"
+            @close-word-card="resetWordState"
+            @decrease-font-size="decreaseReaderFontSize"
+            @increase-font-size="increaseReaderFontSize"
+          />
 
-      <aside class="card selected-panel">
-        <p class="field-label">Selected sentence</p>
-        <p class="selected-sentence">
-          {{ selectedSentence || 'Click a sentence on the left first.' }}
-        </p>
+          <div class="reader-paper-footer">
+            <div class="reader-progress-track" aria-hidden="true">
+              <span :style="readerProgressStyle"></span>
+            </div>
 
-        <div class="reader-actions-row">
-          <span v-if="sentenceProgressText" class="progress-pill">{{ sentenceProgressText }}</span>
-          <RouterLink class="secondary-link review-link" to="/review">
-            Review due words
-          </RouterLink>
-        </div>
+            <div class="reader-control-row">
+              <div class="reader-stepper">
+                <button class="secondary-button" :disabled="!canSelectPrevious" @click="selectPreviousSentence">
+                  {{ t('reader.previous') }}
+                </button>
+                <button class="secondary-button" :disabled="!canSelectNext" @click="selectNextSentence">
+                  {{ t('reader.next') }}
+                </button>
+              </div>
 
-        <div class="reader-stepper">
-          <button class="secondary-button" :disabled="!canSelectPrevious" @click="selectPreviousSentence">
-            Previous
-          </button>
-          <button class="secondary-button" :disabled="!canSelectNext" @click="selectNextSentence">
-            Next
-          </button>
-        </div>
-
-        <div class="translation-block">
-          <p class="field-label">Chinese translation</p>
-
-          <p v-if="!selectedSentence" class="translation-placeholder">
-            Select a sentence to load its translation.
-          </p>
-
-          <p v-else-if="isLoading" class="translation-loading">
-            Loading translation...
-          </p>
-
-          <div v-else-if="errorMessage" class="translation-error">
-            <p>{{ errorMessage }}</p>
-            <button class="error-action" @click="retrySelectedSentence">Retry translation</button>
+              <RouterLink class="secondary-link review-link" to="/review">
+                {{ t('reader.reviewDueWords') }}
+              </RouterLink>
+            </div>
           </div>
+        </div>
+      </section>
 
-          <p v-else-if="translation" class="translation-result">
-            {{ translation }}
-          </p>
+      <aside class="card ai-panel">
+        <div class="ai-panel-header">
+          <div>
+            <p class="field-label">{{ t('reader.aiPanelEyebrow') }}</p>
+            <h2 class="ai-panel-title">{{ t('reader.aiPanelTitle') }}</h2>
+          </div>
+          <button class="toolbar-icon-button ai-panel-clear" type="button" disabled :title="t('toolbar.disabledFeature')">
+            Clear
+          </button>
+        </div>
 
-          <p v-else class="translation-placeholder">
-            Translation result will appear here.
-          </p>
+        <div class="context-selector" aria-label="AI context">
+          <span class="context-label">{{ t('reader.contextLabel') }}</span>
+          <span class="context-option active" aria-current="true">{{ t('reader.contextArticle') }}</span>
         </div>
 
         <div class="summary-block">
           <div class="panel-heading">
-            <p class="field-label">Article summary</p>
+            <p class="field-label">{{ t('reader.summaryTitle') }}</p>
             <button
               class="text-button"
               :disabled="!article || isSummaryLoading"
@@ -79,7 +103,7 @@
           </div>
 
           <p v-if="isSummaryLoading" class="translation-loading">
-            Loading summary...
+            {{ t('reader.loadingSummary') }}
           </p>
 
           <p v-else-if="summaryErrorMessage" class="translation-error">
@@ -96,65 +120,41 @@
           </div>
 
           <p v-else class="translation-placeholder">
-            Click Summarize to get a short Chinese summary.
+            {{ t('reader.summaryPlaceholder') }}
           </p>
         </div>
 
-        <div class="word-block">
-          <p class="field-label">Word explanation</p>
-
-          <p v-if="!selectedWord" class="translation-placeholder">
-            Click a word in the article to view its meaning.
-          </p>
-
-          <p v-else-if="isWordLoading" class="translation-loading">
-            Loading word explanation...
-          </p>
-
-          <div v-else-if="wordErrorMessage" class="translation-error">
-            <p>{{ wordErrorMessage }}</p>
-            <button class="error-action" @click="retrySelectedWord">Retry word</button>
-          </div>
-
-          <div v-else-if="selectedWordDetail" class="word-detail">
-            <div class="word-header">
-              <div>
-                <p class="word-title">{{ selectedWordDetail.word }}</p>
-                <p class="word-part">{{ selectedWordDetail.partOfSpeech }}</p>
-              </div>
-
-              <button
-                class="small-button"
-                :disabled="selectedWordIsSaved"
-                @click="addSelectedWordToVocabulary"
-              >
-                {{ selectedWordIsSaved ? 'Saved' : 'Add' }}
-              </button>
-            </div>
-
-            <p class="word-definition">{{ selectedWordDetail.meaning }}</p>
-            <p class="word-example">{{ selectedWordDetail.example }}</p>
-            <p v-if="vocabularyMessage" :class="vocabularyMessageClass">{{ vocabularyMessage }}</p>
-          </div>
-        </div>
       </aside>
     </div>
 
     <div v-else class="card empty-state">
-      <p>There is no article to read yet.</p>
-      <RouterLink class="secondary-link" to="/">Go back home and add an article</RouterLink>
+      <p>{{ t('common.emptyArticle') }}</p>
+      <RouterLink class="secondary-link" to="/">{{ t('common.goHome') }}</RouterLink>
     </div>
   </section>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { requestSummary } from '../api/summarize.js'
 import { requestTranslation } from '../api/translate.js'
 import { requestWordExplanation } from '../api/word.js'
 import SentenceViewer from '../components/SentenceViewer.vue'
 import { getArticleById, getResumeSentenceIndex, updateArticleProgress } from '../utils/articleHistory.js'
+import { t } from '../utils/locale.js'
+import {
+  getAdjacentSentenceIndex,
+  getNextSentenceIndexForPrefetch,
+  getReaderProgressPercent,
+} from '../utils/readerNavigation.js'
+import {
+  MAX_READER_FONT_SIZE,
+  MIN_READER_FONT_SIZE,
+  adjustReaderFontSize,
+  getInitialReaderFontSize,
+  saveReaderFontSize,
+} from '../utils/readerFontSize.js'
 import { splitIntoSentences } from '../utils/sentence.js'
 import { getStorageItem } from '../utils/storage.js'
 import { getCachedTranslation, saveCachedTranslation } from '../utils/translationCache.js'
@@ -169,11 +169,14 @@ const savedArticle = routeArticleId ? getArticleById(routeArticleId) : null
 const routeArticle = typeof route.query.text === 'string' ? route.query.text : ''
 const article = savedArticle?.content || routeArticle || getStorageItem(STORAGE_KEY)
 const sentences = splitIntoSentences(article)
-const selectedIndex = ref(getResumeSentenceIndex(savedArticle, sentences.length))
+const resumeSentenceIndex = getResumeSentenceIndex(savedArticle, sentences.length)
+const selectedIndex = ref(sentences.length ? Math.max(resumeSentenceIndex, 0) : -1)
+const readerFontSize = ref(getInitialReaderFontSize())
 const loadingIndex = ref(-1)
 const isLoading = ref(false)
 const translation = ref('')
 const errorMessage = ref('')
+const translationCardVisible = ref(false)
 const translationCache = Object.create(null)
 const translationRequests = Object.create(null)
 let currentRequestId = 0
@@ -206,16 +209,30 @@ const selectedSentence = computed(() => {
   return sentences[selectedIndex.value] || ''
 })
 
+const readerTitle = computed(() => savedArticle?.title || createReaderTitle(article))
+
 const sentenceProgressText = computed(() => {
   if (selectedIndex.value < 0 || !sentences.length) {
     return ''
   }
 
-  return `Sentence ${selectedIndex.value + 1} of ${sentences.length}`
+  return t('reader.progress', {
+    current: selectedIndex.value + 1,
+    total: sentences.length,
+  })
 })
 
 const canSelectPrevious = computed(() => selectedIndex.value > 0)
 const canSelectNext = computed(() => selectedIndex.value >= 0 && selectedIndex.value < sentences.length - 1)
+const canDecreaseReaderFontSize = computed(() => readerFontSize.value > MIN_READER_FONT_SIZE)
+const canIncreaseReaderFontSize = computed(() => readerFontSize.value < MAX_READER_FONT_SIZE)
+const readerFontSizeStyle = computed(() => ({
+  '--reader-content-font-size': `${readerFontSize.value}px`,
+}))
+const readerProgressPercent = computed(() => getReaderProgressPercent(selectedIndex.value, sentences.length))
+const readerProgressStyle = computed(() => ({
+  '--reader-progress': `${readerProgressPercent.value}%`,
+}))
 
 const selectedWordIsSaved = computed(() => {
   vocabularyVersion.value
@@ -227,17 +244,12 @@ const selectedWordIsSaved = computed(() => {
   return isWordSaved(selectedWordDetail.value.word)
 })
 
-const vocabularyMessageClass = computed(() => ({
-  'save-message': true,
-  error: vocabularyMessageType.value === 'error',
-}))
-
 const summaryButtonText = computed(() => {
   if (isSummaryLoading.value) {
-    return 'Loading'
+    return t('common.loading')
   }
 
-  return summary.value ? 'Refresh' : 'Summarize'
+  return summary.value ? t('reader.refresh') : t('reader.summarize')
 })
 
 function hasCachedValue(cache, key) {
@@ -248,12 +260,34 @@ function getErrorMessage(error, fallbackMessage) {
   return error instanceof Error && error.message ? error.message : fallbackMessage
 }
 
+function createReaderTitle(text) {
+  const compactTitle = String(text || '').replace(/\s+/g, ' ').trim()
+
+  if (!compactTitle) {
+    return t('reader.title')
+  }
+
+  return compactTitle.length > 86 ? `${compactTitle.slice(0, 83).trim()}...` : compactTitle
+}
+
 function saveReadingProgress(index) {
   if (!routeArticleId) {
     return
   }
 
   updateArticleProgress(routeArticleId, index)
+}
+
+function setReaderFontSize(nextFontSize) {
+  readerFontSize.value = saveReaderFontSize(nextFontSize)
+}
+
+function decreaseReaderFontSize() {
+  setReaderFontSize(adjustReaderFontSize(readerFontSize.value, -1))
+}
+
+function increaseReaderFontSize() {
+  setReaderFontSize(adjustReaderFontSize(readerFontSize.value, 1))
 }
 
 function getTranslation(sentence) {
@@ -283,6 +317,17 @@ function getTranslation(sentence) {
   }
 
   return translationRequests[cacheKey]
+}
+
+function prefetchNextTranslation(index) {
+  const nextIndex = getNextSentenceIndexForPrefetch(index, sentences.length)
+  const nextSentence = sentences[nextIndex]
+
+  if (!nextSentence) {
+    return
+  }
+
+  getTranslation(nextSentence).catch(() => {})
 }
 
 function getWordDetail(word) {
@@ -335,10 +380,15 @@ function getSummary(text, options = {}) {
 async function selectSentence(index, options = {}) {
   const sentence = sentences[index]
   const shouldKeepWord = Boolean(options.keepWord)
+  const shouldShowTranslationCard = options.showTranslationCard !== false
   const cacheKey = sentence?.trim()
 
   if (!sentence) {
     return
+  }
+
+  if (shouldShowTranslationCard) {
+    translationCardVisible.value = true
   }
 
   if (!shouldKeepWord) {
@@ -360,6 +410,7 @@ async function selectSentence(index, options = {}) {
     errorMessage.value = ''
     isLoading.value = false
     loadingIndex.value = -1
+    prefetchNextTranslation(index)
     return
   }
 
@@ -378,12 +429,13 @@ async function selectSentence(index, options = {}) {
     }
 
     translation.value = translatedText
+    prefetchNextTranslation(index)
   } catch (error) {
     if (requestId !== currentRequestId) {
       return
     }
 
-    errorMessage.value = getErrorMessage(error, 'Failed to load the translation.')
+    errorMessage.value = getErrorMessage(error, t('reader.failedTranslation'))
   } finally {
     if (requestId === currentRequestId) {
       isLoading.value = false
@@ -392,12 +444,22 @@ async function selectSentence(index, options = {}) {
   }
 }
 
+function selectAdjacentSentence(direction) {
+  const nextIndex = getAdjacentSentenceIndex(selectedIndex.value, sentences.length, direction)
+
+  if (nextIndex < 0 || nextIndex === selectedIndex.value) {
+    return
+  }
+
+  selectSentence(nextIndex)
+}
+
 function selectPreviousSentence() {
   if (!canSelectPrevious.value) {
     return
   }
 
-  selectSentence(selectedIndex.value - 1)
+  selectAdjacentSentence(-1)
 }
 
 function selectNextSentence() {
@@ -405,7 +467,7 @@ function selectNextSentence() {
     return
   }
 
-  selectSentence(selectedIndex.value + 1)
+  selectAdjacentSentence(1)
 }
 
 async function selectWord({ word, sentenceIndex }) {
@@ -415,7 +477,7 @@ async function selectWord({ word, sentenceIndex }) {
     return
   }
 
-  selectSentence(sentenceIndex, { keepWord: true })
+  selectSentence(sentenceIndex, { keepWord: true, showTranslationCard: false })
 
   if (normalizedWord === normalizeWord(selectedWord.value) && isWordLoading.value) {
     return
@@ -454,7 +516,7 @@ async function selectWord({ word, sentenceIndex }) {
       return
     }
 
-    wordErrorMessage.value = getErrorMessage(error, 'Failed to load the word explanation.')
+    wordErrorMessage.value = getErrorMessage(error, t('reader.failedWord'))
   } finally {
     if (requestId === currentWordRequestId) {
       isWordLoading.value = false
@@ -498,7 +560,7 @@ async function loadSummary(refresh = false) {
       return
     }
 
-    summaryErrorMessage.value = getErrorMessage(error, 'Failed to load the summary.')
+    summaryErrorMessage.value = getErrorMessage(error, t('reader.failedSummary'))
   } finally {
     if (requestId === currentSummaryRequestId) {
       isSummaryLoading.value = false
@@ -511,7 +573,11 @@ function addSelectedWordToVocabulary() {
     return
   }
 
-  const result = saveVocabularyWord(selectedWordDetail.value)
+  const result = saveVocabularyWord({
+    ...selectedWordDetail.value,
+    sentence: selectedSentence.value,
+    articleTitle: readerTitle.value,
+  })
   vocabularyVersion.value += 1
 
   if (result.error) {
@@ -520,7 +586,7 @@ function addSelectedWordToVocabulary() {
     return
   }
 
-  vocabularyMessage.value = result.added ? 'Added to vocabulary.' : 'This word is already saved.'
+  vocabularyMessage.value = result.added ? t('reader.addedMessage') : t('reader.alreadySavedMessage')
   vocabularyMessageType.value = 'success'
 }
 
@@ -554,6 +620,10 @@ function resetTranslationState() {
   loadingIndex.value = -1
 }
 
+function hideTranslationCard() {
+  translationCardVisible.value = false
+}
+
 function resetWordState() {
   currentWordRequestId += 1
   selectedWord.value = ''
@@ -568,13 +638,49 @@ function resetWordState() {
 function clearSelection() {
   currentRequestId += 1
   selectedIndex.value = -1
+  translationCardVisible.value = false
   resetWordState()
   resetTranslationState()
+}
+
+function isEditableTarget(target) {
+  if (!(target instanceof HTMLElement)) {
+    return false
+  }
+
+  const tagName = target.tagName.toLowerCase()
+
+  return target.isContentEditable || tagName === 'input' || tagName === 'textarea' || tagName === 'select'
+}
+
+function handleReaderKeydown(event) {
+  if (!sentences.length || event.altKey || event.ctrlKey || event.metaKey || isEditableTarget(event.target)) {
+    return
+  }
+
+  if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === 'PageDown') {
+    event.preventDefault()
+    selectAdjacentSentence(1)
+    return
+  }
+
+  if (event.key === 'ArrowLeft' || event.key === 'ArrowUp' || event.key === 'PageUp') {
+    event.preventDefault()
+    selectAdjacentSentence(-1)
+  }
 }
 
 if (!sentences.length) {
   clearSelection()
 } else {
-  resetTranslationState()
+  selectSentence(selectedIndex.value, { keepWord: true })
 }
+
+onMounted(() => {
+  window.addEventListener('keydown', handleReaderKeydown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleReaderKeydown)
+})
 </script>

@@ -21,6 +21,7 @@ JSON shape:
 {
   "word": "example",
   "meaning": "Chinese meaning in Simplified Chinese",
+  "definition": "Short English definition",
   "partOfSpeech": "part of speech",
   "example": "A simple English example sentence."
 }

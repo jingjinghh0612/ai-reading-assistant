@@ -87,6 +87,52 @@ describe('vocabulary utilities', () => {
     )
   })
 
+  it('saves vocabulary words with learning context fields', () => {
+    const result = saveVocabularyWord({
+      word: 'Context',
+      meaning: '语境；上下文',
+      definition: 'The situation or text around a word that helps explain it.',
+      sentence: 'Context helps readers infer the meaning of a new word.',
+      articleTitle: 'Reading Strategies',
+    })
+
+    const [word] = result.words
+
+    assert.equal(result.added, true)
+    assert.equal(word.word, 'Context')
+    assert.equal(word.meaning, '语境；上下文')
+    assert.equal(word.definition, 'The situation or text around a word that helps explain it.')
+    assert.equal(word.sentence, 'Context helps readers infer the meaning of a new word.')
+    assert.equal(word.articleTitle, 'Reading Strategies')
+    assert.equal(word.status, 'review')
+    assert.match(word.createdAt, /^\d{4}-\d{2}-\d{2}T/)
+    assert.equal(word.nextReviewAt, word.createdAt)
+    assert.equal(word.reviewCount, 0)
+  })
+
+  it('migrates legacy examples and hides simulated or unknown placeholders', () => {
+    localStorage.setItem(
+      'ai-reading-vocabulary',
+      JSON.stringify([
+        {
+          word: 'Mystery',
+          meaning: '关于 "Mystery" 的模拟释义',
+          partOfSpeech: 'unknown',
+          example: 'The mystery sentence came from an older saved card.',
+          savedAt: '2026-05-01T00:00:00.000Z',
+        },
+      ]),
+    )
+
+    const [word] = getVocabularyWords()
+
+    assert.equal(word.meaning, '')
+    assert.equal(word.partOfSpeech, '')
+    assert.equal(word.sentence, 'The mystery sentence came from an older saved card.')
+    assert.equal(word.createdAt, '2026-05-01T00:00:00.000Z')
+    assert.equal(word.status, 'review')
+  })
+
   it('records remembered reviews with spaced intervals and marks the final stage mastered', () => {
     saveVocabularyWord({
       word: 'Practice',
@@ -139,5 +185,31 @@ describe('vocabulary utilities', () => {
     assert.equal(result.word.mistakeCount, 1)
     assert.equal(result.word.nextReviewAt, '2026-05-15T08:00:00.000Z')
     assert.equal(result.word.mastered, false)
+  })
+
+  it('records familiar and mastered review feedback separately', () => {
+    saveVocabularyWord({
+      word: 'Fluent',
+      meaning: '流利的',
+      definition: 'Able to speak or write smoothly and easily.',
+      sentence: 'She became fluent after reading every day.',
+    })
+
+    let result = recordVocabularyReview('fluent', 'familiar', new Date('2026-05-10T08:00:00.000Z'))
+
+    assert.equal(result.updated, true)
+    assert.equal(result.word.status, 'review')
+    assert.equal(result.word.reviewStage, 1)
+    assert.equal(result.word.reviewCount, 1)
+    assert.equal(result.word.nextReviewAt, '2026-05-11T08:00:00.000Z')
+    assert.equal(result.word.mastered, false)
+
+    result = recordVocabularyReview('fluent', 'mastered', new Date('2026-05-11T08:00:00.000Z'))
+
+    assert.equal(result.updated, true)
+    assert.equal(result.word.status, 'mastered')
+    assert.equal(result.word.reviewCount, 2)
+    assert.equal(result.word.mastered, true)
+    assert.equal(result.word.nextReviewAt, '2026-05-25T08:00:00.000Z')
   })
 })

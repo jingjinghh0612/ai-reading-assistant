@@ -3,14 +3,37 @@ import { postJson } from './request.js'
 export async function requestWordExplanation(word) {
   const data = await postJson('/api/word-explain', { word }, 'Failed to load the word explanation.')
 
-  if (!data.meaning) {
-    throw new Error('No word explanation was returned.')
-  }
-
   return {
     word: data.word || word,
-    meaning: data.meaning,
-    partOfSpeech: data.partOfSpeech || 'unknown',
-    example: data.example || '',
+    meaning: normalizeWordDetailText(data.meaning),
+    definition: normalizeWordDetailText(data.definition),
+    partOfSpeech: normalizePartOfSpeech(data.partOfSpeech),
+    example: normalizeExample(data.example),
   }
+}
+
+function normalizeWordDetailText(value) {
+  const text = typeof value === 'string' ? value.trim() : ''
+
+  if (!text || text.toLowerCase() === 'unknown' || text.includes('模拟释义')) {
+    return ''
+  }
+
+  return text
+}
+
+function normalizePartOfSpeech(value) {
+  const text = typeof value === 'string' ? value.trim() : ''
+
+  return text.toLowerCase() === 'unknown' ? '' : text
+}
+
+function normalizeExample(value) {
+  const text = typeof value === 'string' ? value.trim() : ''
+
+  if (!text || /^try to understand\b/i.test(text)) {
+    return ''
+  }
+
+  return text
 }

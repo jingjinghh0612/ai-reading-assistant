@@ -4,6 +4,57 @@ import { getStorageItem, setStorageItem } from './storage.js'
 const STORAGE_KEY = 'ai-reading-vocabulary'
 const STORAGE_ERROR = 'Unable to update vocabulary in this browser.'
 const REVIEW_INTERVAL_DAYS = [1, 3, 7, 14]
+const REVIEW_STATUS = 'review'
+const MASTERED_STATUS = 'mastered'
+const VALID_REVIEW_OUTCOMES = ['forgot', 'familiar', 'mastered', 'remembered']
+
+function normalizeText(value) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function hasChineseText(value) {
+  return /[\u3400-\u9fff]/.test(value)
+}
+
+function normalizeMeaning(value) {
+  const text = normalizeText(value)
+
+  if (!text || text.toLowerCase() === 'unknown' || text.includes('模拟释义')) {
+    return ''
+  }
+
+  return text
+}
+
+function normalizeDefinition(value) {
+  const text = normalizeText(value)
+
+  if (!text || text.toLowerCase() === 'unknown' || text.includes('模拟释义')) {
+    return ''
+  }
+
+  return text
+}
+
+function normalizePartOfSpeech(value) {
+  const text = normalizeText(value)
+
+  return text.toLowerCase() === 'unknown' ? '' : text
+}
+
+function normalizeStatus(value, mastered) {
+  const status = normalizeText(value).toLowerCase()
+
+  if (status === MASTERED_STATUS) {
+    return MASTERED_STATUS
+  }
+
+  if (status === REVIEW_STATUS || status === 'learning') {
+    return REVIEW_STATUS
+  }
+
+  return mastered ? MASTERED_STATUS : REVIEW_STATUS
+}
 
 function normalizeDate(value, fallbackValue = new Date().toISOString()) {
   const date = new Date(value)
@@ -47,18 +98,29 @@ function normalizeVocabularyItem(item) {
     return null
   }
 
-  const savedAt = normalizeDate(item.savedAt)
+  const createdAt = normalizeDate(item.createdAt || item.savedAt)
+  const savedAt = normalizeDate(item.savedAt || item.createdAt, createdAt)
   const reviewStage = normalizeReviewStage(item.reviewStage)
+  const rawMeaning = normalizeText(item.meaning)
+  const rawDefinition = normalizeText(item.definition)
+  const legacyDefinitionIsMeaning = !rawMeaning && hasChineseText(rawDefinition)
+  const status = normalizeStatus(item.status, Boolean(item.mastered))
+  const sentence = normalizeText(item.sentence || item.example)
 
   return {
     id: item.id || `${normalizedWord}-${Date.now()}`,
-    word: item.word || normalizedWord,
+    word: normalizeText(item.word) || normalizedWord,
     normalizedWord,
-    meaning: item.meaning || item.definition || '',
-    partOfSpeech: item.partOfSpeech || 'unknown',
-    example: item.example || '',
+    meaning: normalizeMeaning(rawMeaning || (legacyDefinitionIsMeaning ? rawDefinition : '')),
+    definition: normalizeDefinition(legacyDefinitionIsMeaning ? '' : rawDefinition),
+    sentence,
+    articleTitle: normalizeText(item.articleTitle || item.sourceTitle),
+    status,
+    createdAt,
+    partOfSpeech: normalizePartOfSpeech(item.partOfSpeech),
+    example: normalizeText(item.example || item.sentence),
     savedAt,
-    mastered: Boolean(item.mastered),
+    mastered: status === MASTERED_STATUS,
     reviewStage,
     reviewCount: normalizeCount(item.reviewCount),
     mistakeCount: normalizeCount(item.mistakeCount),
@@ -68,7 +130,7 @@ function normalizeVocabularyItem(item) {
 }
 
 function sortBySavedAtDesc(words) {
-  return [...words].sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime())
+  return [...words].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 }
 
 function sortByNextReviewAtAsc(words) {
@@ -79,7 +141,7 @@ function sortByNextReviewAtAsc(words) {
       return reviewTimeDifference
     }
 
-    return new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime()
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   })
 }
 
@@ -137,21 +199,27 @@ export function saveVocabularyWord(wordInfo) {
     }
   }
 
-  const savedAt = new Date().toISOString()
+  const createdAt = new Date().toISOString()
+  const sentence = normalizeText(wordInfo.sentence || wordInfo.example)
   const newWord = {
     id: `${normalizedWord}-${Date.now()}`,
-    word: wordInfo.word,
+    word: normalizeText(wordInfo.word) || normalizedWord,
     normalizedWord,
-    meaning: wordInfo.meaning || wordInfo.definition || '',
-    partOfSpeech: wordInfo.partOfSpeech,
-    example: wordInfo.example,
-    savedAt,
+    meaning: normalizeMeaning(wordInfo.meaning),
+    definition: normalizeDefinition(wordInfo.definition),
+    sentence,
+    articleTitle: normalizeText(wordInfo.articleTitle),
+    status: REVIEW_STATUS,
+    createdAt,
+    partOfSpeech: normalizePartOfSpeech(wordInfo.partOfSpeech),
+    example: normalizeText(wordInfo.example || sentence),
+    savedAt: createdAt,
     mastered: false,
     reviewStage: 0,
     reviewCount: 0,
     mistakeCount: 0,
     lastReviewedAt: '',
-    nextReviewAt: savedAt,
+    nextReviewAt: createdAt,
   }
 
   const nextWords = [newWord, ...words]
@@ -201,6 +269,7 @@ export function toggleVocabularyWordMastered(normalizedWord) {
 
     return {
       ...item,
+      status: item.mastered ? REVIEW_STATUS : MASTERED_STATUS,
       mastered: !item.mastered,
     }
   })
@@ -259,7 +328,7 @@ export function recordVocabularyReview(normalizedWord, outcome, now = new Date()
   const target = normalizeWord(normalizedWord || '')
   const words = getVocabularyWords()
 
-  if (!target || !['remembered', 'forgot'].includes(outcome)) {
+  if (!target || !VALID_REVIEW_OUTCOMES.includes(outcome)) {
     return {
       updated: false,
       word: null,
@@ -275,19 +344,29 @@ export function recordVocabularyReview(normalizedWord, outcome, now = new Date()
     }
 
     const forgot = outcome === 'forgot'
-    const intervalDays = forgot
-      ? REVIEW_INTERVAL_DAYS[0]
+    const mastered = outcome === 'mastered'
+    const familiar = outcome === 'familiar'
+    const intervalDays = forgot || mastered
+      ? REVIEW_INTERVAL_DAYS[forgot ? 0 : REVIEW_INTERVAL_DAYS.length - 1]
       : REVIEW_INTERVAL_DAYS[Math.min(item.reviewStage, REVIEW_INTERVAL_DAYS.length - 1)]
-    const nextReviewStage = forgot ? 0 : Math.min(item.reviewStage + 1, REVIEW_INTERVAL_DAYS.length)
+    const nextReviewStage = getNextReviewStage(item.reviewStage, outcome)
+    const nextMastered = mastered || (outcome === 'remembered' && nextReviewStage >= REVIEW_INTERVAL_DAYS.length)
+    const nextStatus = nextMastered ? MASTERED_STATUS : REVIEW_STATUS
 
     updatedWord = {
       ...item,
-      mastered: forgot ? false : nextReviewStage >= REVIEW_INTERVAL_DAYS.length,
+      status: nextStatus,
+      mastered: nextMastered,
       reviewStage: nextReviewStage,
       reviewCount: item.reviewCount + 1,
       mistakeCount: item.mistakeCount + (forgot ? 1 : 0),
       lastReviewedAt: reviewedAt,
       nextReviewAt: addDays(reviewedAt, intervalDays),
+    }
+
+    if (familiar) {
+      updatedWord.mastered = false
+      updatedWord.status = REVIEW_STATUS
     }
 
     return updatedWord
@@ -319,15 +398,32 @@ export function recordVocabularyReview(normalizedWord, outcome, now = new Date()
   }
 }
 
+function getNextReviewStage(reviewStage, outcome) {
+  if (outcome === 'forgot') {
+    return 0
+  }
+
+  if (outcome === 'mastered') {
+    return REVIEW_INTERVAL_DAYS.length
+  }
+
+  if (outcome === 'familiar') {
+    return Math.min(reviewStage + 1, REVIEW_INTERVAL_DAYS.length - 1)
+  }
+
+  return Math.min(reviewStage + 1, REVIEW_INTERVAL_DAYS.length)
+}
+
 export function filterVocabularyWords(words, options = {}) {
   const keyword = String(options.query || '').trim().toLowerCase()
   const status = options.status || 'all'
 
   return words.filter((item) => {
+    const itemStatus = item.status || (item.mastered ? MASTERED_STATUS : REVIEW_STATUS)
     const matchesStatus =
       status === 'all' ||
-      (status === 'review' && !item.mastered) ||
-      (status === 'mastered' && item.mastered)
+      (status === REVIEW_STATUS && itemStatus !== MASTERED_STATUS) ||
+      (status === MASTERED_STATUS && itemStatus === MASTERED_STATUS)
 
     if (!matchesStatus) {
       return false
@@ -341,6 +437,9 @@ export function filterVocabularyWords(words, options = {}) {
       item.word.toLowerCase().includes(keyword) ||
       item.normalizedWord.includes(keyword) ||
       item.meaning.toLowerCase().includes(keyword) ||
+      item.definition.toLowerCase().includes(keyword) ||
+      item.sentence.toLowerCase().includes(keyword) ||
+      item.articleTitle.toLowerCase().includes(keyword) ||
       item.partOfSpeech.toLowerCase().includes(keyword)
     )
   })
