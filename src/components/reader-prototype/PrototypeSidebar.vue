@@ -3,30 +3,62 @@
     <section class="prototype-panel">
       <div class="panel-heading-row">
         <h2>我的书架</h2>
-        <span class="panel-count">{{ books.length }} 本</span>
+        <button
+          class="sidebar-import-button"
+          type="button"
+          title="导入书籍"
+          @click="$emit('import-book')"
+        >
+          <span aria-hidden="true">+</span>
+          导入
+        </button>
       </div>
+      <span class="panel-count">{{ books.length }} 本</span>
 
       <div class="book-list">
-        <button
+        <div
           v-for="book in books"
           :key="book.id"
-          class="book-item"
-          :class="{ active: book.id === activeBookId }"
-          type="button"
+          class="book-list-row"
+          :class="{ imported: book.isImported }"
         >
-          <span class="book-cover" :class="book.tone" aria-hidden="true">{{ book.initials }}</span>
-          <span class="book-item-copy">
-            <strong>{{ book.title }}</strong>
-            <small>{{ book.meta }}</small>
-          </span>
-        </button>
+          <button
+            class="book-item"
+            :class="{ active: book.id === activeBookId }"
+            type="button"
+            @click="$emit('select-book', book.id)"
+          >
+            <span class="book-cover" :class="book.tone" aria-hidden="true">{{ book.initials }}</span>
+            <span class="book-item-copy">
+              <strong>{{ book.title }}</strong>
+              <small>{{ book.meta }}</small>
+            </span>
+          </button>
+
+          <button
+            v-if="book.isImported"
+            class="book-delete-button"
+            type="button"
+            :aria-label="`删除 ${book.title}`"
+            title="删除书籍"
+            @click.stop="$emit('delete-book', book.id)"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 4h6" />
+              <path d="M5 7h14" />
+              <path d="M10 11v6" />
+              <path d="M14 11v6" />
+              <path d="M7 7l1 13h8l1-13" />
+            </svg>
+          </button>
+        </div>
       </div>
     </section>
 
     <section class="prototype-panel chapter-panel">
       <div class="panel-heading-row">
         <h2>章节</h2>
-        <span class="panel-count">8 章</span>
+        <span class="panel-count">{{ chapters.length }} 章</span>
       </div>
 
       <div class="chapter-list">
@@ -104,7 +136,7 @@ defineProps({
   },
   activeChapterId: {
     type: String,
-    required: true,
+    default: null,
   },
   progress: {
     type: Object,
@@ -112,5 +144,5 @@ defineProps({
   },
 })
 
-defineEmits(['select-chapter'])
+defineEmits(['select-book', 'select-chapter', 'import-book', 'delete-book'])
 </script>

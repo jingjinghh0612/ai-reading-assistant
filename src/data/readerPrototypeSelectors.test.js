@@ -4,12 +4,14 @@ import { prototypeBooks, prototypeChapterContent, prototypeDictionary } from './
 import * as selectors from './readerPrototypeSelectors.js'
 import {
   findPrototypeBook,
+  findPrototypeBookChapterContent,
   findPrototypeChapter,
   findPrototypeChapterContent,
   getPrototypeChapters,
   getPrototypeParagraphs,
   getPrototypeReadingProgress,
   mapDictionaryEntryToWordPanel,
+  createPastedPrototypeChapterContent,
 } from './readerPrototypeSelectors.js'
 
 function flattenPrototypeTokens(chapterContent) {
@@ -44,6 +46,47 @@ describe('reader prototype selectors', () => {
       prototypeChapterContent['chapter-4'],
     )
     assert.equal(findPrototypeChapterContent({}, 'missing-chapter', fallbackChapterId), null)
+  })
+
+  it('selects chapter content only from the active book', () => {
+    const emptyBook = {
+      id: 'empty-book',
+      chapters: [],
+    }
+    const importedBook = {
+      id: 'imported-book',
+      chapters: [
+        {
+          id: 'imported-chapter-1',
+        },
+      ],
+    }
+    const importedContent = {
+      id: 'imported-chapter-1',
+      title: 'Imported Chapter',
+      paragraphs: [],
+    }
+    const chapterContentById = {
+      ...prototypeChapterContent,
+      'imported-chapter-1': importedContent,
+    }
+
+    assert.equal(
+      findPrototypeBookChapterContent(chapterContentById, prototypeBooks[0], 'chapter-5', 'chapter-4'),
+      prototypeChapterContent['chapter-5'],
+    )
+    assert.equal(
+      findPrototypeBookChapterContent(chapterContentById, prototypeBooks[0], 'missing-chapter', 'chapter-4'),
+      prototypeChapterContent['chapter-4'],
+    )
+    assert.equal(
+      findPrototypeBookChapterContent(chapterContentById, importedBook, 'missing-chapter', 'chapter-4'),
+      importedContent,
+    )
+    assert.equal(
+      findPrototypeBookChapterContent(chapterContentById, emptyBook, 'chapter-4', 'chapter-4'),
+      null,
+    )
   })
 
   it('provides local reading content for every shelf chapter', () => {
@@ -145,6 +188,101 @@ describe('reader prototype selectors', () => {
         sourceTranslation: '',
       },
     )
+  })
+
+  it('creates temporary prototype chapter content from pasted plain text', () => {
+    const pastedChapter = createPastedPrototypeChapterContent(
+      'First pasted sentence. Second sentence!\n\nAnother paragraph asks why?',
+    )
+
+    assert.equal(pastedChapter.id, 'pasted-article')
+    assert.equal(pastedChapter.bookId, 'pasted-book')
+    assert.equal(pastedChapter.number, 'Paste')
+    assert.equal(pastedChapter.title, '粘贴文章')
+    assert.equal(pastedChapter.paragraphs.length, 2)
+    assert.equal(pastedChapter.paragraphs[0].id, 'pasted-p1')
+    assert.equal(pastedChapter.paragraphs[0].active, true)
+    assert.equal(pastedChapter.paragraphs[0].translation, '粘贴文章暂未生成译文。')
+    assert.deepEqual(
+      pastedChapter.paragraphs[0].sentences.map((sentence) => sentence.text),
+      ['First pasted sentence.', 'Second sentence!'],
+    )
+    assert.equal(pastedChapter.paragraphs[1].sentences[0].id, 'pasted-p2-s1')
+    assert.equal(pastedChapter.paragraphs[1].sentences[0].text, 'Another paragraph asks why?')
+
+    const firstSentenceTokens = pastedChapter.paragraphs[0].sentences[0].tokens
+
+    assert.deepEqual(
+      firstSentenceTokens.filter((token) => token.wordKey).map((token) => ({
+        text: token.text,
+        surface: token.surface,
+        lemma: token.lemma,
+        wordKey: token.wordKey,
+        sentenceId: token.sentenceId,
+      })),
+      [
+        {
+          text: 'First',
+          surface: 'First',
+          lemma: 'first',
+          wordKey: 'first',
+          sentenceId: 'pasted-p1-s1',
+        },
+        {
+          text: 'pasted',
+          surface: 'pasted',
+          lemma: 'pasted',
+          wordKey: 'pasted',
+          sentenceId: 'pasted-p1-s1',
+        },
+        {
+          text: 'sentence',
+          surface: 'sentence',
+          lemma: 'sentence',
+          wordKey: 'sentence',
+          sentenceId: 'pasted-p1-s1',
+        },
+      ],
+    )
+  })
+
+  it('keeps readable single-line paragraph breaks in pasted plain text', () => {
+    const pastedChapter = createPastedPrototypeChapterContent(
+      'First pasted paragraph ends here.\nSecond pasted paragraph asks why?\nThis pasted line wraps without ending\nand should stay together.',
+    )
+
+    assert.equal(pastedChapter.paragraphs.length, 3)
+    assert.deepEqual(
+      pastedChapter.paragraphs.map((paragraph) => paragraph.sentences.map((sentence) => sentence.text).join(' ')),
+      [
+        'First pasted paragraph ends here.',
+        'Second pasted paragraph asks why?',
+        'This pasted line wraps without ending and should stay together.',
+      ],
+    )
+  })
+
+  it('returns a basic word panel for pasted words missing from the local dictionary', () => {
+    const context = {
+      wordKey: 'curious',
+      surface: 'Curious',
+      sourceSentence: 'Curious readers notice patterns.',
+      sourceTranslation: '',
+    }
+
+    assert.deepEqual(mapDictionaryEntryToWordPanel(null, context), {
+      word: 'Curious',
+      lemma: 'curious',
+      phonetic: '',
+      partOfSpeech: '',
+      meaning: '暂无本地释义',
+      explanation: '这是粘贴文章中的词，当前原型词典还没有收录。',
+      example: '',
+      exampleTranslation: '',
+      forms: [],
+      sourceSentence: 'Curious readers notice patterns.',
+      sourceTranslation: '',
+    })
   })
 
   it('maps a clicked token to the word panel with its sentence context', () => {

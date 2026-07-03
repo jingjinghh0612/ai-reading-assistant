@@ -1,3 +1,10 @@
+import { splitIntoSentences } from '../utils/sentence.js'
+import { splitPrototypeReadableParagraphs } from '../utils/prototypeParagraphs.js'
+import { normalizeWord, splitSentenceIntoTokens } from '../utils/word.js'
+
+const PASTED_CHAPTER_ID = 'pasted-article'
+const PASTED_BOOK_ID = 'pasted-book'
+
 export function findPrototypeBook(books, activeBookId) {
   return books.find((book) => book.id === activeBookId) || books[0] || null
 }
@@ -8,6 +15,28 @@ export function getPrototypeChapters(book) {
 
 export function findPrototypeChapterContent(chapterContentById, activeChapterId, fallbackChapterId) {
   return chapterContentById[activeChapterId] || chapterContentById[fallbackChapterId] || null
+}
+
+export function findPrototypeBookChapterContent(chapterContentById, book, activeChapterId, fallbackChapterId) {
+  const chapters = getPrototypeChapters(book)
+
+  if (!chapters.length) {
+    return null
+  }
+
+  const chapterIds = new Set(chapters.map((chapter) => chapter.id))
+
+  if (chapterIds.has(activeChapterId) && chapterContentById[activeChapterId]) {
+    return chapterContentById[activeChapterId]
+  }
+
+  if (chapterIds.has(fallbackChapterId) && chapterContentById[fallbackChapterId]) {
+    return chapterContentById[fallbackChapterId]
+  }
+
+  const firstReadableChapter = chapters.find((chapter) => chapterContentById[chapter.id])
+
+  return firstReadableChapter ? chapterContentById[firstReadableChapter.id] : null
 }
 
 export function findPrototypeChapter(chapters, activeChapterId, chapterContent) {
@@ -162,7 +191,23 @@ export function getPrototypeWordContext(chapterContent, selection) {
 
 export function mapDictionaryEntryToWordPanel(entry, context = null) {
   if (!entry) {
-    return null
+    if (!context) {
+      return null
+    }
+
+    return {
+      word: context.surface || context.wordKey || '',
+      lemma: context.wordKey || normalizeWord(context.surface || ''),
+      phonetic: '',
+      partOfSpeech: '',
+      meaning: '暂无本地释义',
+      explanation: '这是粘贴文章中的词，当前原型词典还没有收录。',
+      example: '',
+      exampleTranslation: '',
+      forms: [],
+      sourceSentence: context.sourceSentence || '',
+      sourceTranslation: context.sourceTranslation || '',
+    }
   }
 
   const firstExample = entry.examples?.[0]
@@ -234,4 +279,68 @@ export function removePrototypeSentenceHighlight(chapterHighlights, sentenceId) 
   }
 
   return nextHighlights
+}
+
+export function createPastedPrototypeChapterContent(text) {
+  const content = String(text || '').trim()
+
+  if (!content) {
+    return null
+  }
+
+  const paragraphTexts = splitPrototypeReadableParagraphs(content)
+
+  return {
+    id: PASTED_CHAPTER_ID,
+    bookId: PASTED_BOOK_ID,
+    number: 'Paste',
+    title: '粘贴文章',
+    paragraphs: paragraphTexts.map((paragraphText, paragraphIndex) => {
+      const paragraphId = `pasted-p${paragraphIndex + 1}`
+      const sentences = splitIntoSentences(paragraphText)
+
+      return {
+        id: paragraphId,
+        active: paragraphIndex === 0,
+        translation: '粘贴文章暂未生成译文。',
+        sentences: sentences.map((sentence, sentenceIndex) => {
+          const sentenceId = `${paragraphId}-s${sentenceIndex + 1}`
+
+          return {
+            id: sentenceId,
+            highlighted: false,
+            text: sentence,
+            translation: '',
+            tokens: createPastedPrototypeSentenceTokens(sentence, sentenceId),
+          }
+        }),
+      }
+    }),
+  }
+}
+
+function createPastedPrototypeSentenceTokens(sentence, sentenceId) {
+  let tokenIndex = 0
+
+  return splitSentenceIntoTokens(sentence).map((token) => {
+    tokenIndex += 1
+
+    const wordKey = normalizeWord(token)
+
+    if (!wordKey) {
+      return {
+        id: `${sentenceId}-t${tokenIndex}`,
+        text: token,
+      }
+    }
+
+    return {
+      id: `${sentenceId}-w${tokenIndex}`,
+      text: token,
+      surface: token,
+      lemma: wordKey,
+      wordKey,
+      sentenceId,
+    }
+  })
 }
