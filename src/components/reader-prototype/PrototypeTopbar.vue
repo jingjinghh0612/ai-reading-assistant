@@ -2,14 +2,18 @@
   <header class="prototype-topbar" aria-label="AI Reading reader prototype">
     <div class="prototype-brand">
       <span class="prototype-brand-mark" aria-hidden="true">AI</span>
-      <span>AI Reading</span>
+      <span class="prototype-brand-copy">
+        <strong>Reading</strong>
+        <small>智能精读工作台</small>
+      </span>
     </div>
 
     <button class="prototype-book-select" type="button" :title="book.title">
       <span class="book-select-icon" aria-hidden="true">Book</span>
       <span class="book-select-copy">
         <strong>{{ book.title }}</strong>
-        <small>Chapter {{ chapter.number }} · {{ chapter.title }}</small>
+        <small v-if="chapter">Chapter {{ chapter.number }} · {{ chapter.title }}</small>
+        <small v-else>暂无章节</small>
       </span>
       <span class="book-select-caret" aria-hidden="true">⌄</span>
     </button>
@@ -98,6 +102,34 @@
             <span class="tool-label">{{ showTranslation ? '译文开' : '译文关' }}</span>
           </button>
         </div>
+
+        <div class="toolstrip-group import-group" aria-label="文章导入">
+          <button
+            class="toolstrip-button"
+            type="button"
+            title="粘贴文章"
+            @click="$emit('paste-article')"
+          >
+            <span class="tool-icon" aria-hidden="true">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5.3 3.4h5.4" />
+                <path d="M6 2.4h4l.7 1H5.3l.7-1Z" />
+                <path d="M4 4.4h8v8.7H4z" />
+                <path d="M6 7h4" />
+                <path d="M6 9.4h3" />
+              </svg>
+            </span>
+            <span class="tool-label">粘贴文章</span>
+          </button>
+        </div>
+
+        <p
+          v-if="pasteMessage"
+          class="prototype-paste-message"
+          :class="pasteMessageType"
+        >
+          {{ pasteMessage }}
+        </p>
       </div>
     </nav>
   </header>
@@ -111,7 +143,7 @@ defineProps({
   },
   chapter: {
     type: Object,
-    required: true,
+    default: null,
   },
   showTranslation: {
     type: Boolean,
@@ -137,6 +169,14 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  pasteMessage: {
+    type: String,
+    default: '',
+  },
+  pasteMessageType: {
+    type: String,
+    default: 'success',
+  },
 })
 
 defineEmits([
@@ -145,5 +185,6 @@ defineEmits([
   'toggle-highlight-mode',
   'select-highlight-color',
   'select-highlight-clear',
+  'paste-article',
 ])
 </script>

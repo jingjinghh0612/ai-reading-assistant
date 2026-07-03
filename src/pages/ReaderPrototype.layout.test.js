@@ -15,6 +15,10 @@ const readingPaperSource = readFileSync(
   new URL('../components/reader-prototype/PrototypeReadingPaper.vue', import.meta.url),
   'utf8',
 )
+const sidebarSource = readFileSync(
+  new URL('../components/reader-prototype/PrototypeSidebar.vue', import.meta.url),
+  'utf8',
+)
 const wordPanelSource = readFileSync(
   new URL('../components/reader-prototype/PrototypeAssistant.vue', import.meta.url),
   'utf8',
@@ -23,6 +27,14 @@ const topbarSource = readFileSync(
   new URL('../components/reader-prototype/PrototypeTopbar.vue', import.meta.url),
   'utf8',
 )
+const pasteEditorUrl = new URL('../components/reader-prototype/PrototypePasteEditor.vue', import.meta.url)
+const pasteEditorSource = existsSync(pasteEditorUrl)
+  ? readFileSync(pasteEditorUrl, 'utf8')
+  : ''
+const bookImportPanelUrl = new URL('../components/reader-prototype/PrototypeBookImportPanel.vue', import.meta.url)
+const bookImportPanelSource = existsSync(bookImportPanelUrl)
+  ? readFileSync(bookImportPanelUrl, 'utf8')
+  : ''
 const prototypeStyleSource = readFileSync(new URL('../reader-prototype.css', import.meta.url), 'utf8')
 
 function cssBlock(selector) {
@@ -83,8 +95,8 @@ describe('reader prototype word definition panel contract', () => {
 
     for (const selectorName of [
       'findPrototypeBook',
+      'findPrototypeBookChapterContent',
       'getPrototypeChapters',
-      'findPrototypeChapterContent',
       'findPrototypeChapter',
       'getPrototypeParagraphs',
       'getPrototypeReadingProgress',
@@ -258,6 +270,9 @@ describe('reader prototype word definition panel contract', () => {
 
   it('keeps the prototype toolbar focused on reading display controls only', () => {
     assert.match(topbarSource, /toolstrip-shell/)
+    assert.match(topbarSource, /prototype-brand-copy/)
+    assert.match(topbarSource, /<strong>Reading<\/strong>/)
+    assert.match(topbarSource, /智能精读工作台/)
     assert.match(topbarSource, /toolstrip-group reading-group/)
     assert.match(topbarSource, /toolstrip-group translation-group/)
     assert.match(topbarSource, /tool-icon/)
@@ -331,24 +346,32 @@ describe('reader prototype word definition panel contract', () => {
   })
 
   it('styles the top toolbar as grouped reader controls with clear states', () => {
-    assert.match(prototypeStyleSource, /grid-template-rows:\s*42px 40px/)
+    assert.match(prototypeStyleSource, /grid-template-rows:\s*52px 42px/)
+    assert.match(prototypeStyleSource, /\.prototype-topbar\s*\{[\s\S]*border-bottom:\s*1px solid rgba\(184, 197, 215, 0\.48\)/)
+    assert.match(prototypeStyleSource, /\.prototype-topbar\s*\{[\s\S]*backdrop-filter:\s*blur\(22px\) saturate\(150%\)/)
+    assert.match(prototypeStyleSource, /\.prototype-brand-copy\s*\{[\s\S]*display:\s*grid/)
+    assert.match(prototypeStyleSource, /\.prototype-brand-copy strong\s*\{[\s\S]*font-size:\s*16px/)
+    assert.match(prototypeStyleSource, /\.prototype-brand-copy small\s*\{[\s\S]*font-size:\s*10\.5px/)
+    assert.match(prototypeStyleSource, /\.prototype-brand-mark\s*\{[\s\S]*border-radius:\s*12px/)
+    assert.match(prototypeStyleSource, /\.prototype-book-select\s*\{[\s\S]*border-radius:\s*16px/)
+    assert.match(prototypeStyleSource, /\.prototype-book-select\s*\{[\s\S]*box-shadow:\s*0 14px 34px rgba\(31, 45, 71, 0\.08\)/)
     assert.match(prototypeStyleSource, /\.prototype-toolstrip\s*\{[\s\S]*overflow-x:\s*auto/)
-    assert.match(prototypeStyleSource, /\.prototype-toolstrip\s*\{[\s\S]*height:\s*40px/)
+    assert.match(prototypeStyleSource, /\.prototype-toolstrip\s*\{[\s\S]*height:\s*42px/)
     assert.match(prototypeStyleSource, /\.prototype-toolstrip\s*\{[\s\S]*padding:\s*0 20px/)
-    assert.match(prototypeStyleSource, /\.prototype-toolstrip\s*\{[\s\S]*border-bottom:\s*1px solid #dfe5ee/)
-    assert.match(prototypeStyleSource, /\.prototype-toolstrip\s*\{[\s\S]*background:\s*#f9fafb/)
-    assert.match(prototypeStyleSource, /\.toolstrip-shell\s*\{[\s\S]*gap:\s*11px/)
-    assert.match(prototypeStyleSource, /\.toolstrip-group\s*\{[\s\S]*gap:\s*3px/)
-    assert.match(prototypeStyleSource, /\.toolstrip-group\s*\{[\s\S]*border:\s*1px solid #e5e7eb/)
-    assert.match(prototypeStyleSource, /\.toolstrip-group\s*\{[\s\S]*border-radius:\s*10px/)
-    assert.match(prototypeStyleSource, /\.toolstrip-group\s*\{[\s\S]*background:\s*#ffffff/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*height:\s*30px/)
+    assert.match(prototypeStyleSource, /\.prototype-toolstrip\s*\{[\s\S]*border-bottom:\s*1px solid rgba\(216, 224, 235, 0\.84\)/)
+    assert.match(prototypeStyleSource, /\.prototype-toolstrip\s*\{[\s\S]*background:\s*rgba\(247, 250, 253, 0\.78\)/)
+    assert.match(prototypeStyleSource, /\.toolstrip-shell\s*\{[\s\S]*gap:\s*12px/)
+    assert.match(prototypeStyleSource, /\.toolstrip-group\s*\{[\s\S]*gap:\s*4px/)
+    assert.match(prototypeStyleSource, /\.toolstrip-group\s*\{[\s\S]*border:\s*1px solid rgba\(213, 222, 235, 0\.92\)/)
+    assert.match(prototypeStyleSource, /\.toolstrip-group\s*\{[\s\S]*border-radius:\s*14px/)
+    assert.match(prototypeStyleSource, /\.toolstrip-group\s*\{[\s\S]*background:\s*rgba\(255, 255, 255, 0\.88\)/)
+    assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*height:\s*32px/)
     assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*min-width:\s*48px/)
     assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*gap:\s*6px/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*border:\s*1px solid #d8e0eb/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*border-radius:\s*8px/)
+    assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*border:\s*1px solid rgba\(216, 224, 235, 0\.92\)/)
+    assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*border-radius:\s*11px/)
     assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*color:\s*#475569/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*background:\s*#ffffff/)
+    assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*background:\s*rgba\(255, 255, 255, 0\.82\)/)
     assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*font-size:\s*13px/)
     assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*transition:/)
     assert.match(prototypeStyleSource, /\.tool-icon\s*\{[\s\S]*width:\s*16px/)
@@ -387,6 +410,131 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(readerPrototypeSource, /@select-highlight-clear="selectHighlightClear"/)
     assert.match(readerPrototypeSource, /@toggle-sentence-highlight="toggleSentenceHighlight"/)
     assert.doesNotMatch(readerPrototypeSource, /localStorage/)
+  })
+
+  it('renders an empty book state instead of falling back to stale chapter content', () => {
+    assert.match(readerPrototypeSource, /findPrototypeBookChapterContent/)
+    assert.match(
+      readerPrototypeSource,
+      /findPrototypeBookChapterContent\([\s\S]*chapterContentById\.value,[\s\S]*currentBook\.value,[\s\S]*activeChapterId\.value,[\s\S]*fallbackChapterId,[\s\S]*\)/,
+    )
+    assert.match(readerPrototypeSource, /v-else-if="currentChapter"/)
+    assert.match(readerPrototypeSource, /prototype-empty-book/)
+    assert.match(readerPrototypeSource, /getPrototypeChapters\(currentBook\.value\)/)
+    assert.match(prototypeStyleSource, /\.prototype-empty-book/)
+    assert.doesNotMatch(
+      readerPrototypeSource,
+      /findPrototypeChapterContent\(\s*chapterContentById\.value,\s*activeChapterId\.value,\s*fallbackChapterId\s*\)/,
+    )
+    assert.match(topbarSource, /v-if="chapter"/)
+    assert.match(topbarSource, /chapter:\s*\{[\s\S]*default:\s*null/)
+  })
+
+  it('wires pasted article mode into the prototype reader instead of the formal reader route', () => {
+    assert.ok(existsSync(pasteEditorUrl), 'paste editor should render inside the prototype reader area')
+    assert.match(readerPrototypeSource, /import\s+PrototypePasteEditor\s+from\s+['"]\.\.\/components\/reader-prototype\/PrototypePasteEditor\.vue['"]/)
+    assert.match(readerPrototypeSource, /readClipboardText/)
+    assert.match(readerPrototypeSource, /createPastedPrototypeChapterContent/)
+    assert.match(readerPrototypeSource, /pastedChapterContent/)
+    assert.match(readerPrototypeSource, /isPastedArticleActive/)
+    assert.match(readerPrototypeSource, /sidebarActiveChapterId/)
+    assert.match(readerPrototypeSource, /:active-chapter-id="sidebarActiveChapterId"/)
+    assert.match(readerPrototypeSource, /isPasteEditorOpen/)
+    assert.match(readerPrototypeSource, /pasteDraft/)
+    assert.match(readerPrototypeSource, /openPasteEditor/)
+    assert.match(readerPrototypeSource, /closePasteEditor/)
+    assert.match(readerPrototypeSource, /submitPastedArticle/)
+    assert.match(readerPrototypeSource, /readClipboardIntoDraft/)
+    assert.match(readerPrototypeSource, /<PrototypePasteEditor/)
+    assert.match(readerPrototypeSource, /v-else-if="isPasteEditorOpen"/)
+    assert.match(readerPrototypeSource, /v-model="pasteDraft"/)
+    assert.match(readerPrototypeSource, /@submit="submitPastedArticle"/)
+    assert.match(readerPrototypeSource, /@cancel="closePasteEditor"/)
+    assert.match(readerPrototypeSource, /@read-clipboard="readClipboardIntoDraft"/)
+    assert.match(readerPrototypeSource, /@paste-article="openPasteEditor"/)
+    assert.doesNotMatch(readerPrototypeSource, /@paste-article="pastePrototypeArticle"/)
+    assert.match(readerPrototypeSource, /const chapters = computed\(\(\) => getPrototypeChapters\(currentBook\.value\)\)/)
+    assert.doesNotMatch(readerPrototypeSource, /const baseChapters = getPrototypeChapters/)
+    assert.doesNotMatch(readerPrototypeSource, /\.\.\.baseChapters/)
+    assert.doesNotMatch(readerPrototypeSource, /activeChapterId\.value\s*=\s*pastedChapter\.id/)
+    assert.match(readerPrototypeSource, /isPastedArticleActive\.value\s*=\s*true/)
+    assert.match(readerPrototypeSource, /isPastedArticleActive\.value\s*=\s*false/)
+    assert.match(readerPrototypeSource, /currentChapterContent = computed/)
+    assert.match(readerPrototypeSource, /pastedChapterContent\.value/)
+    assert.doesNotMatch(readerPrototypeSource, /router\.push/)
+    assert.doesNotMatch(readerPrototypeSource, /path:\s*['"]\/reader['"]/)
+    assert.doesNotMatch(readerPrototypeSource, /to=['"]\/reader['"]/)
+    assert.doesNotMatch(readerPrototypeSource, /localStorage/)
+  })
+
+  it('wires PDF and EPUB file imports into the real prototype bookshelf', () => {
+    assert.ok(existsSync(bookImportPanelUrl), 'book import panel should exist')
+    assert.match(readerPrototypeSource, /import\s+PrototypeBookImportPanel\s+from\s+['"]\.\.\/components\/reader-prototype\/PrototypeBookImportPanel\.vue['"]/)
+    assert.match(readerPrototypeSource, /parsePrototypeBookFile/)
+    assert.match(readerPrototypeSource, /createImportedPrototypeBookFromText/)
+    assert.match(readerPrototypeSource, /loadImportedPrototypeBooks/)
+    assert.match(readerPrototypeSource, /appendImportedPrototypeBook/)
+    assert.match(readerPrototypeSource, /removeImportedPrototypeBook/)
+    assert.match(readerPrototypeSource, /getImportedPrototypeChapterContentById/)
+    assert.match(readerPrototypeSource, /const importedBooks = ref\(loadImportedPrototypeBooks\(\)\)/)
+    assert.match(readerPrototypeSource, /const books = computed\(\(\) => \[\.\.\.importedBooks\.value,\s*\.\.\.prototypeBooks\]\)/)
+    assert.match(readerPrototypeSource, /:books="books"/)
+    assert.match(readerPrototypeSource, /@select-book="selectBook"/)
+    assert.match(readerPrototypeSource, /@import-book="openBookImport"/)
+    assert.match(readerPrototypeSource, /@delete-book="deleteImportedBook"/)
+    assert.match(readerPrototypeSource, /function deleteImportedBook/)
+    assert.match(readerPrototypeSource, /<PrototypeBookImportPanel/)
+    assert.match(readerPrototypeSource, /v-if="isBookImportOpen"/)
+    assert.match(readerPrototypeSource, /@select-file="selectImportFile"/)
+    assert.match(readerPrototypeSource, /@submit="importSelectedBookFile"/)
+    assert.match(readerPrototypeSource, /@cancel="closeBookImport"/)
+    assert.match(readerPrototypeSource, /activeBookId\.value\s*=\s*importedBook\.id/)
+    assert.match(readerPrototypeSource, /activeChapterId\.value\s*=\s*importedBook\.chapters\[0\]\?\.id/)
+    assert.doesNotMatch(readerPrototypeSource, /难度/)
+    assert.doesNotMatch(readerPrototypeSource, /备注/)
+  })
+
+  it('renders a bookshelf file import action and a PDF EPUB chooser', () => {
+    assert.match(sidebarSource, /import-book/)
+    assert.match(sidebarSource, /select-book/)
+    assert.match(sidebarSource, /delete-book/)
+    assert.match(sidebarSource, /@click="\$emit\('select-book',\s*book\.id\)"/)
+    assert.match(sidebarSource, /@click="\$emit\('import-book'\)"/)
+    assert.match(sidebarSource, /v-if="book\.isImported"/)
+    assert.match(sidebarSource, /@click\.stop="\$emit\('delete-book',\s*book\.id\)"/)
+    assert.match(sidebarSource, /book-delete-button/)
+    assert.match(sidebarSource, /sidebar-import-button/)
+    assert.match(bookImportPanelSource, /type="file"/)
+    assert.match(bookImportPanelSource, /accept="\.pdf,\.epub,application\/pdf,application\/epub\+zip"/)
+    assert.match(bookImportPanelSource, /book-import-title-input/)
+    assert.match(bookImportPanelSource, /defineEmits\(\[[\s\S]*'update:title'[\s\S]*'select-file'[\s\S]*'submit'[\s\S]*'cancel'[\s\S]*\]\)/)
+    assert.match(prototypeStyleSource, /\.prototype-book-import-panel/)
+    assert.match(prototypeStyleSource, /\.sidebar-import-button/)
+    assert.match(prototypeStyleSource, /\.book-delete-button/)
+    assert.doesNotMatch(bookImportPanelSource, /难度/)
+    assert.doesNotMatch(bookImportPanelSource, /备注/)
+  })
+
+  it('renders a middle paste editor with textarea actions', () => {
+    assert.match(pasteEditorSource, /<textarea/)
+    assert.match(pasteEditorSource, /modelValue/)
+    assert.match(pasteEditorSource, /paste-editor-textarea/)
+    assert.match(pasteEditorSource, /paste-editor-actions/)
+    assert.match(pasteEditorSource, /defineEmits\(\[[\s\S]*'update:modelValue'[\s\S]*'submit'[\s\S]*'cancel'[\s\S]*'read-clipboard'[\s\S]*\]\)/)
+    assert.match(prototypeStyleSource, /\.prototype-paste-editor/)
+    assert.match(prototypeStyleSource, /\.paste-editor-textarea/)
+    assert.match(prototypeStyleSource, /\.paste-editor-actions/)
+  })
+
+  it('renders a prototype toolbar paste action with page-level feedback', () => {
+    assert.match(topbarSource, /pasteMessage/)
+    assert.match(topbarSource, /粘贴文章/)
+    assert.match(topbarSource, /paste-article/)
+    assert.match(topbarSource, /prototype-paste-message/)
+    assert.match(topbarSource, /defineEmits\(\[[\s\S]*'paste-article'[\s\S]*\]\)/)
+    assert.match(readerPrototypeSource, /:paste-message="pasteArticleMessage"/)
+    assert.match(readerPrototypeSource, /:paste-message-type="pasteArticleMessageType"/)
+    assert.match(prototypeStyleSource, /\.prototype-paste-message/)
   })
 
   it('renders highlighter controls without mixing marking mode and visibility', () => {
