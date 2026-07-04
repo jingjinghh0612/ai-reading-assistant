@@ -5,6 +5,7 @@ import { normalizeWord, splitSentenceIntoTokens } from '../utils/word.js'
 const PASTED_CHAPTER_ID = 'pasted-article'
 const PASTED_BOOK_ID = 'pasted-book'
 const TRANSLATION_PLACEHOLDER_PATTERNS = [
+  /暂无译文/,
   /暂未生成译文/,
   /鏆傛湭鐢熸垚璇戞枃/,
   /no translation/i,
@@ -87,6 +88,20 @@ export function getPrototypeLocalParagraphTranslation(paragraph) {
     .map((sentence) => normalizePrototypeText(sentence.translation))
     .filter((translation) => translation && !isPrototypeTranslationPlaceholder(translation))
     .join(' ')
+}
+
+export function getPrototypeSentenceSourceText(sentence) {
+  return normalizePrototypeText(sentence?.text)
+}
+
+export function getPrototypeLocalSentenceTranslation(sentence) {
+  const sentenceTranslation = normalizePrototypeText(sentence?.translation)
+
+  return sentenceTranslation && !isPrototypeTranslationPlaceholder(sentenceTranslation) ? sentenceTranslation : ''
+}
+
+export function getPrototypeTranslationStateKey(chapterId, paragraphId, itemId) {
+  return `${chapterId || 'chapter'}:${paragraphId || 'paragraph'}:${itemId || ''}`
 }
 
 export function getPrototypeReadingProgress(book, chapter) {

@@ -241,6 +241,40 @@ describe('reader prototype selectors', () => {
     )
   })
 
+  it('prepares sentence text and local translations for inline sentence translation', () => {
+    assert.equal(typeof selectors.getPrototypeSentenceSourceText, 'function')
+    assert.equal(typeof selectors.getPrototypeLocalSentenceTranslation, 'function')
+    assert.equal(typeof selectors.getPrototypeTranslationStateKey, 'function')
+
+    assert.equal(
+      selectors.getPrototypeSentenceSourceText({
+        text: '  The room became quiet.  ',
+      }),
+      'The room became quiet.',
+    )
+    assert.equal(selectors.getPrototypeSentenceSourceText(null), '')
+    assert.equal(
+      selectors.getPrototypeLocalSentenceTranslation({
+        translation: ' 房间安静下来。 ',
+      }),
+      '房间安静下来。',
+    )
+    assert.equal(
+      selectors.getPrototypeLocalSentenceTranslation({
+        translation: '暂无译文',
+      }),
+      '',
+    )
+    assert.equal(
+      selectors.getPrototypeTranslationStateKey('chapter-4', 'p1', 'p1-s2'),
+      'chapter-4:p1:p1-s2',
+    )
+    assert.equal(
+      selectors.getPrototypeTranslationStateKey('', 'p1', 'p1-s2'),
+      'chapter:p1:p1-s2',
+    )
+  })
+
   it('maps AI word explanations to the prototype word panel contract with sentence context', () => {
     assert.equal(typeof mapAiWordDetailToWordPanel, 'function')
 
