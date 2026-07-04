@@ -72,4 +72,32 @@ describe('prototype file parser utilities', () => {
     assert.match(result.text, /Rain stopped\./)
     assert.match(result.chapters[0].text, /First sentence\.\n\nSecond sentence\./)
   })
+
+  it('decodes hexadecimal HTML entities from EPUB text', async () => {
+    const zip = new JSZip()
+
+    zip.file(
+      'META-INF/container.xml',
+      '<container><rootfiles><rootfile full-path="OPS/content.opf"/></rootfiles></container>',
+    )
+    zip.file(
+      'OPS/content.opf',
+      `<package>
+        <metadata><dc:title>&#x5C0F;&#x4E66;</dc:title></metadata>
+        <manifest><item id="preface" href="preface.xhtml" media-type="application/xhtml+xml"/></manifest>
+        <spine><itemref idref="preface"/></spine>
+      </package>`,
+    )
+    zip.file(
+      'OPS/preface.xhtml',
+      '<html><head><title>&#x524D;&#x8A00;</title></head><body><p>&#x539F;&#x6587;&#xFF1A; http://example.com</p></body></html>',
+    )
+
+    const result = await extractTextFromEpubArrayBuffer(await zip.generateAsync({ type: 'arraybuffer' }))
+
+    assert.equal(result.title, '小书')
+    assert.equal(result.chapters[0].title, '前言')
+    assert.match(result.chapters[0].text, /原文： http:\/\/example\.com/)
+    assert.doesNotMatch(result.chapters[0].text, /&#x/i)
+  })
 })

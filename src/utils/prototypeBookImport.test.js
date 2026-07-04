@@ -265,6 +265,65 @@ describe('prototype book import utilities', () => {
     )
   })
 
+  it('repairs stored imported books that contain hexadecimal HTML entities', async () => {
+    const staleBook = {
+      id: 'legacy-hex-entities',
+      title: 'Legacy Hex Entities',
+      sourceType: 'epub',
+      fileName: 'legacy-hex.epub',
+      isImported: true,
+      chapters: [
+        {
+          id: 'legacy-hex-entities-chapter-1',
+          number: '01',
+          title: 'Preface',
+          sentenceCount: 1,
+        },
+      ],
+      chapterContents: {
+        'legacy-hex-entities-chapter-1': {
+          id: 'legacy-hex-entities-chapter-1',
+          bookId: 'legacy-hex-entities',
+          number: '01',
+          title: 'Preface',
+          paragraphs: [
+            {
+              id: 'legacy-hex-entities-chapter-1-p1',
+              active: true,
+              translation: '',
+              sentences: [
+                {
+                  id: 'legacy-hex-entities-chapter-1-p1-s1',
+                  highlighted: false,
+                  text: '&#x539F;&#x6587;&#xFF1A; http://example.com',
+                  translation: '',
+                  tokens: [
+                    {
+                      id: 'legacy-hex-entities-chapter-1-p1-s1-w1',
+                      text: 'x',
+                      surface: 'x',
+                      wordKey: 'x',
+                      sentenceId: 'legacy-hex-entities-chapter-1-p1-s1',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    }
+
+    localStorage.setItem(IMPORTED_PROTOTYPE_BOOKS_STORAGE_KEY, JSON.stringify([staleBook]))
+
+    const loaded = await loadImportedPrototypeBooks()
+    const sentence =
+      loaded[0].chapterContents['legacy-hex-entities-chapter-1'].paragraphs[0].sentences[0]
+
+    assert.equal(sentence.text, '原文： http://example.com')
+    assert.equal(sentence.tokens.some((token) => token.text.includes('&#') || token.wordKey === 'x'), false)
+  })
+
   it('prepends a new imported book in IndexedDB when localStorage cannot grow', async () => {
     const firstBook = createImportedPrototypeBookFromText({
       id: 'imported-first',

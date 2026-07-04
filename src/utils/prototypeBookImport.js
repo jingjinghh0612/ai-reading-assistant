@@ -2,6 +2,7 @@ import { splitIntoSentences } from './sentence.js'
 import { getStorageItem } from './storage.js'
 import { splitPrototypeReadableParagraphs } from './prototypeParagraphs.js'
 import { normalizeWord, splitSentenceIntoTokens } from './word.js'
+import { decodeXmlText } from './prototypeFileParser.js'
 
 export const IMPORTED_PROTOTYPE_BOOKS_STORAGE_KEY = 'ai-reading:reader-prototype:imported-books'
 const IMPORTED_BOOKS_DB_NAME = 'ai-reading-reader-prototype'
@@ -20,13 +21,13 @@ export function createImportedPrototypeBookFromText({
   text,
   chapters,
 } = {}) {
-  const cleanTitle = String(title || fileName || 'Imported Book').trim() || 'Imported Book'
-  const cleanText = String(text || '').trim()
+  const cleanTitle = decodeImportedText(title || fileName || 'Imported Book') || 'Imported Book'
+  const cleanText = decodeImportedText(text, { preserveLineBreaks: true }).trim()
   const parsedChapters = Array.isArray(chapters)
     ? chapters
         .map((chapter, index) => ({
-          title: String(chapter?.title || `Chapter ${index + 1}`).trim() || `Chapter ${index + 1}`,
-          text: String(chapter?.text || '').trim(),
+          title: decodeImportedText(chapter?.title || `Chapter ${index + 1}`) || `Chapter ${index + 1}`,
+          text: decodeImportedText(chapter?.text, { preserveLineBreaks: true }).trim(),
         }))
         .filter((chapter) => chapter.text)
     : []
@@ -498,13 +499,64 @@ function normalizeImportedBook(book) {
     return null
   }
 
+  const sourceType = String(book.sourceType || 'file')
+  const title = decodeImportedText(book.title) || 'Imported Book'
+
   return {
     ...book,
-    meta: book.meta || `本地导入 · ${String(book.sourceType || 'file').toUpperCase()}`,
-    initials: book.initials || createBookInitials(book.title),
+    title,
+    meta: decodeImportedText(book.meta) || `本地导入 · ${sourceType.toUpperCase()}`,
+    chapters: book.chapters.map(normalizeImportedChapter),
+    initials: book.initials || createBookInitials(title),
     tone: book.tone || 'blue',
     progress: Number.isFinite(book.progress) ? book.progress : 0,
     isImported: true,
-    chapterContents: book.chapterContents || {},
+    chapterContents: normalizeImportedChapterContents(book.chapterContents || {}),
   }
+}
+
+function normalizeImportedChapter(chapter, index) {
+  return {
+    ...chapter,
+    title: decodeImportedText(chapter?.title || `Chapter ${index + 1}`) || `Chapter ${index + 1}`,
+  }
+}
+
+function normalizeImportedChapterContents(chapterContents) {
+  const normalizedContents = {}
+
+  for (const [chapterId, chapterContent] of Object.entries(chapterContents || {})) {
+    normalizedContents[chapterId] = {
+      ...chapterContent,
+      title: decodeImportedText(chapterContent?.title) || chapterContent?.title || 'Chapter',
+      paragraphs: (chapterContent?.paragraphs || []).map(normalizeImportedParagraph),
+    }
+  }
+
+  return normalizedContents
+}
+
+function normalizeImportedParagraph(paragraph) {
+  return {
+    ...paragraph,
+    translation: decodeImportedText(paragraph?.translation),
+    sentences: (paragraph?.sentences || []).map(normalizeImportedSentence),
+  }
+}
+
+function normalizeImportedSentence(sentence) {
+  const sentenceId = sentence?.id || 'sentence'
+  const text = decodeImportedText(sentence?.text)
+
+  return {
+    ...sentence,
+    id: sentenceId,
+    text,
+    translation: decodeImportedText(sentence?.translation),
+    tokens: createImportedSentenceTokens(text, sentenceId),
+  }
+}
+
+function decodeImportedText(value, options) {
+  return decodeXmlText(value, options)
 }

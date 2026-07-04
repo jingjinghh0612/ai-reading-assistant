@@ -275,15 +275,16 @@ function extractTextFromHtml(html) {
   )
 }
 
-function decodeXmlText(value, { preserveLineBreaks = false } = {}) {
+export function decodeXmlText(value, { preserveLineBreaks = false } = {}) {
   const decoded = String(value || '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
     .replace(/&#39;/g, "'")
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => decodeXmlCodePoint(Number.parseInt(code, 16)))
+    .replace(/&#(\d+);/g, (_, code) => decodeXmlCodePoint(Number(code)))
 
   if (preserveLineBreaks) {
     return decoded
@@ -296,4 +297,12 @@ function decodeXmlText(value, { preserveLineBreaks = false } = {}) {
   return decoded
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+function decodeXmlCodePoint(codePoint) {
+  if (!Number.isInteger(codePoint) || codePoint < 0 || codePoint > 0x10ffff) {
+    return ''
+  }
+
+  return String.fromCodePoint(codePoint)
 }
