@@ -57,7 +57,7 @@
         <PrototypeReadingPaper
           v-else-if="currentChapter"
           :chapter="currentChapter"
-          :paragraphs="paragraphs"
+          :paragraphs="displayParagraphs"
           :show-translation="showTranslation"
           :show-highlight="showHighlight"
           :sentence-highlights="currentChapterHighlights"
@@ -66,6 +66,7 @@
           :selected-word-key="selectedWordKey"
           :selected-paragraph-id="selectedParagraphId"
           @select-word="selectWord"
+          @retry-translation="retryPrototypeTranslation"
           @toggle-sentence-highlight="toggleSentenceHighlight"
         />
         <section
@@ -84,10 +85,14 @@
         :vocabulary="chapterVocabulary"
         :wordbook="mockWordbook"
         :is-added="isSelectedWordAdded"
+        :is-word-loading="isWordLoading"
+        :loading-word="loadingWord"
+        :word-error-message="wordErrorMessage"
         :message="wordbookMessage"
         @select-word="selectWord"
         @add-word="addToMockWordbook"
         @remove-word="removeFromMockWordbook"
+        @retry-word="retrySelectedPrototypeWord"
         @show-wordbook="clearSelectedWord"
       />
     </div>
@@ -95,7 +100,9 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { requestTranslation } from '../api/translate.js'
+import { requestPrototypeWordExplanation } from '../api/prototypeWord.js'
 import PrototypeAssistant from '../components/reader-prototype/PrototypeAssistant.vue'
 import PrototypeBookImportPanel from '../components/reader-prototype/PrototypeBookImportPanel.vue'
 import PrototypePasteEditor from '../components/reader-prototype/PrototypePasteEditor.vue'
@@ -111,16 +118,22 @@ import {
   getDefaultPrototypeHighlights,
   getPrototypeChapterHighlights,
   getPrototypeChapterVocabulary,
+  getPrototypeLocalParagraphTranslation,
   getPrototypeMockWordbook,
   getPrototypeWordContext,
   getPrototypeChapters,
   getPrototypeParagraphs,
+  getPrototypeParagraphSourceText,
   getPrototypeReadingProgress,
+  mapAiWordDetailToWordPanel,
   mapDictionaryEntryToWordPanel,
   removePrototypeSentenceHighlight,
   togglePrototypeSentenceHighlight,
 } from '../data/readerPrototypeSelectors.js'
 import { readClipboardText } from '../utils/clipboard.js'
+import { getCachedTranslation, saveCachedTranslation } from '../utils/translationCache.js'
+import { isWordSaved, removeVocabularyWord, saveVocabularyWord } from '../utils/vocabulary.js'
+import { normalizeWord } from '../utils/word.js'
 import {
   appendImportedPrototypeBook,
   createImportedPrototypeBookFromText,
@@ -160,9 +173,15 @@ const isHighlightClearMode = ref(false)
 const sentenceHighlightsByChapter = ref(createInitialPrototypeHighlights())
 const selectedWordKey = ref(null)
 const selectedWordContext = ref(null)
+const selectedAiWordEntry = ref(null)
 const addedWordKeys = ref([])
 const wordbookMessage = ref('')
-const importedBooks = ref(loadImportedPrototypeBooks())
+const wordbookMessageType = ref('success')
+const vocabularyVersion = ref(0)
+const isWordLoading = ref(false)
+const loadingWord = ref('')
+const wordErrorMessage = ref('')
+const importedBooks = ref([])
 const pastedChapterContent = ref(null)
 const isPastedArticleActive = ref(false)
 const isPasteEditorOpen = ref(false)
@@ -175,6 +194,13 @@ const bookImportTitle = ref('')
 const bookImportMessage = ref('')
 const bookImportMessageType = ref('success')
 const isImportingBook = ref(false)
+const translationByParagraphId = ref({})
+const translationLoadingByParagraphId = ref({})
+const translationErrorByParagraphId = ref({})
+const translationRequests = Object.create(null)
+const wordCache = Object.create(null)
+const wordRequests = Object.create(null)
+let currentWordRequestId = 0
 
 const books = computed(() => [...importedBooks.value, ...prototypeBooks])
 
@@ -235,6 +261,20 @@ const currentChapter = computed(() => {
 
 const paragraphs = computed(() => getPrototypeParagraphs(currentChapterContent.value))
 
+const displayParagraphs = computed(() =>
+  paragraphs.value.map((paragraph) => {
+    const paragraphStateKey = getPrototypeParagraphStateKey(paragraph)
+    const localTranslation = getPrototypeLocalParagraphTranslation(paragraph)
+
+    return {
+      ...paragraph,
+      translation: localTranslation || translationByParagraphId.value[paragraphStateKey] || '',
+      isTranslationLoading: Boolean(translationLoadingByParagraphId.value[paragraphStateKey]),
+      translationErrorMessage: translationErrorByParagraphId.value[paragraphStateKey] || '',
+    }
+  }),
+)
+
 const currentChapterHighlights = computed(() => {
   return getPrototypeChapterHighlights(sentenceHighlightsByChapter.value, currentChapter.value?.id)
 })
@@ -256,12 +296,174 @@ const selectedWordEntry = computed(() => {
     return null
   }
 
-  return mapDictionaryEntryToWordPanel(prototypeDictionary[selectedWordKey.value], selectedWordContext.value)
+  const localEntry = prototypeDictionary[selectedWordKey.value]
+
+  if (localEntry) {
+    return mapDictionaryEntryToWordPanel(prototypeDictionary[selectedWordKey.value], selectedWordContext.value)
+  }
+
+  if (selectedAiWordEntry.value) {
+    return mapAiWordDetailToWordPanel(selectedAiWordEntry.value, selectedWordContext.value)
+  }
+
+  return mapDictionaryEntryToWordPanel(null, selectedWordContext.value)
 })
 
 const isSelectedWordAdded = computed(() => {
-  return selectedWordKey.value ? addedWordKeys.value.includes(selectedWordKey.value) : false
+  vocabularyVersion.value
+
+  if (!selectedWordKey.value || !selectedWordEntry.value) {
+    return false
+  }
+
+  return addedWordKeys.value.includes(selectedWordKey.value) || isWordSaved(selectedWordEntry.value.word)
 })
+
+function hasCachedValue(cache, key) {
+  return Object.prototype.hasOwnProperty.call(cache, key)
+}
+
+function getErrorMessage(error, fallbackMessage) {
+  return error instanceof Error && error.message ? error.message : fallbackMessage
+}
+
+function getPrototypeParagraphStateKey(paragraph) {
+  return `${currentChapter.value?.id || currentChapterContent.value?.id || 'chapter'}:${paragraph?.id || ''}`
+}
+
+function setRecordValue(recordRef, key, value) {
+  const nextRecord = { ...recordRef.value }
+
+  if (value) {
+    nextRecord[key] = value
+  } else {
+    delete nextRecord[key]
+  }
+
+  recordRef.value = nextRecord
+}
+
+function getPrototypeTranslation(sourceText, options = {}) {
+  const refresh = Boolean(options.refresh)
+  const cacheKey = sourceText.trim()
+
+  if (!cacheKey) {
+    return Promise.resolve('')
+  }
+
+  if (!refresh) {
+    const cachedTranslation = getCachedTranslation(sourceText)
+
+    if (cachedTranslation) {
+      return Promise.resolve(cachedTranslation)
+    }
+  }
+
+  if (refresh) {
+    delete translationRequests[cacheKey]
+  }
+
+  if (!translationRequests[cacheKey]) {
+    translationRequests[cacheKey] = requestTranslation(sourceText)
+      .then((data) => {
+        saveCachedTranslation(sourceText, data.translation)
+        return data.translation
+      })
+      .finally(() => {
+        delete translationRequests[cacheKey]
+      })
+  }
+
+  return translationRequests[cacheKey]
+}
+
+async function loadPrototypeParagraphTranslation(paragraph, options = {}) {
+  const paragraphStateKey = getPrototypeParagraphStateKey(paragraph)
+  const sourceText = getPrototypeParagraphSourceText(paragraph)
+
+  if (!paragraphStateKey || !sourceText || getPrototypeLocalParagraphTranslation(paragraph)) {
+    return
+  }
+
+  if (!options.refresh && translationByParagraphId.value[paragraphStateKey]) {
+    return
+  }
+
+  setRecordValue(translationErrorByParagraphId, paragraphStateKey, '')
+  setRecordValue(translationLoadingByParagraphId, paragraphStateKey, true)
+
+  try {
+    const translation = await getPrototypeTranslation(sourceText, options)
+
+    if (!translation) {
+      throw new Error('没有返回可用译文。')
+    }
+
+    setRecordValue(translationByParagraphId, paragraphStateKey, translation)
+  } catch (error) {
+    setRecordValue(translationErrorByParagraphId, paragraphStateKey, getErrorMessage(error, 'AI 翻译加载失败。'))
+  } finally {
+    setRecordValue(translationLoadingByParagraphId, paragraphStateKey, false)
+  }
+}
+
+function loadMissingPrototypeTranslations() {
+  if (!showTranslation.value) {
+    return
+  }
+
+  for (const paragraph of paragraphs.value) {
+    const paragraphStateKey = getPrototypeParagraphStateKey(paragraph)
+
+    if (
+      getPrototypeLocalParagraphTranslation(paragraph) ||
+      translationByParagraphId.value[paragraphStateKey] ||
+      translationLoadingByParagraphId.value[paragraphStateKey]
+    ) {
+      continue
+    }
+
+    loadPrototypeParagraphTranslation(paragraph)
+  }
+}
+
+function retryPrototypeTranslation(paragraphId) {
+  const paragraph = paragraphs.value.find((item) => item.id === paragraphId)
+
+  if (!paragraph) {
+    return
+  }
+
+  const paragraphStateKey = getPrototypeParagraphStateKey(paragraph)
+  setRecordValue(translationByParagraphId, paragraphStateKey, '')
+  setRecordValue(translationErrorByParagraphId, paragraphStateKey, '')
+  loadPrototypeParagraphTranslation(paragraph, { refresh: true })
+}
+
+function getAiWordDetail(word) {
+  const cacheKey = normalizeWord(word)
+
+  if (!cacheKey) {
+    return Promise.resolve(null)
+  }
+
+  if (hasCachedValue(wordCache, cacheKey)) {
+    return Promise.resolve(wordCache[cacheKey])
+  }
+
+  if (!wordRequests[cacheKey]) {
+    wordRequests[cacheKey] = requestPrototypeWordExplanation(word)
+      .then((detail) => {
+        wordCache[cacheKey] = detail
+        return detail
+      })
+      .finally(() => {
+        delete wordRequests[cacheKey]
+      })
+  }
+
+  return wordRequests[cacheKey]
+}
 
 function isKnownHighlightColor(colorId) {
   return prototypeHighlightColors.some((color) => color.id === colorId)
@@ -345,27 +547,36 @@ function selectChapter(chapterId) {
   clearSelectedWord()
 }
 
-function deleteImportedBook(bookId) {
+async function deleteImportedBook(bookId) {
   const deletedBook = importedBooks.value.find((item) => item.id === bookId)
 
   if (!deletedBook) {
     return
   }
 
-  const result = removeImportedPrototypeBook(bookId)
+  if (deletedBook.isTemporary) {
+    updateAfterImportedBookDeleted(deletedBook, importedBooks.value.filter((item) => item.id !== bookId))
+    return
+  }
+
+  const result = await removeImportedPrototypeBook(bookId)
 
   if (!result.deleted) {
     return
   }
 
-  importedBooks.value = result.books
+  updateAfterImportedBookDeleted(deletedBook, result.books)
+}
+
+function updateAfterImportedBookDeleted(deletedBook, nextImportedBooks) {
+  importedBooks.value = nextImportedBooks
   removeHighlightsForBook(deletedBook)
 
-  if (activeBookId.value !== bookId) {
+  if (activeBookId.value !== deletedBook.id) {
     return
   }
 
-  const nextBook = getFirstReadableBook(result.books)
+  const nextBook = getFirstReadableBook(nextImportedBooks)
 
   if (nextBook) {
     activeBookId.value = nextBook.id
@@ -403,16 +614,119 @@ function removeHighlightsForBook(book) {
   sentenceHighlightsByChapter.value = nextHighlights
 }
 
-function selectWord(selection) {
+async function loadImportedBooksIntoShelf() {
+  importedBooks.value = await loadImportedPrototypeBooks()
+}
+
+function activateImportedBook(importedBook, nextImportedBooks) {
+  importedBooks.value = nextImportedBooks
+  activeBookId.value = importedBook.id
+  activeChapterId.value = importedBook.chapters[0]?.id || fallbackChapterId
+  isBookImportOpen.value = false
+  isPastedArticleActive.value = false
+  sentenceHighlightsByChapter.value = {
+    ...sentenceHighlightsByChapter.value,
+    ...Object.fromEntries(importedBook.chapters.map((chapter) => [chapter.id, {}])),
+  }
+  clearBookImportForm()
+  clearSelectedWord()
+}
+
+function activateTemporaryImportedBook(importedBook, existingImportedBooks = []) {
+  const temporaryBook = {
+    ...importedBook,
+    isTemporary: true,
+    meta: `${importedBook.meta} · 临时`,
+  }
+  const nextImportedBooks = [
+    temporaryBook,
+    ...existingImportedBooks.filter((item) => item.id !== importedBook.id),
+  ]
+
+  activateImportedBook(temporaryBook, nextImportedBooks)
+  pasteArticleMessage.value = '已临时导入，但无法保存到本地书架；刷新后会丢失。'
+  pasteArticleMessageType.value = 'error'
+}
+
+async function selectWord(selection) {
   const wordSelection = typeof selection === 'string' ? { wordKey: selection } : selection
 
   selectedWordKey.value = wordSelection?.wordKey || null
   selectedWordContext.value = getPrototypeWordContext(currentChapterContent.value, wordSelection)
+  selectedAiWordEntry.value = null
+  wordErrorMessage.value = ''
   wordbookMessage.value = ''
+
+  if (!selectedWordKey.value) {
+    return
+  }
+
+  if (prototypeDictionary[selectedWordKey.value]) {
+    currentWordRequestId += 1
+    isWordLoading.value = false
+    loadingWord.value = ''
+    return
+  }
+
+  const requestWord = selectedWordContext.value?.surface || wordSelection?.surface || selectedWordKey.value
+  const normalizedRequestWord = normalizeWord(requestWord)
+
+  if (!normalizedRequestWord) {
+    return
+  }
+
+  const requestId = ++currentWordRequestId
+
+  if (hasCachedValue(wordCache, normalizedRequestWord)) {
+    selectedAiWordEntry.value = wordCache[normalizedRequestWord]
+    return
+  }
+
+  isWordLoading.value = true
+  loadingWord.value = requestWord
+
+  try {
+    const detail = await getAiWordDetail(requestWord)
+
+    if (requestId !== currentWordRequestId) {
+      return
+    }
+
+    selectedAiWordEntry.value = detail
+  } catch (error) {
+    if (requestId !== currentWordRequestId) {
+      return
+    }
+
+    wordErrorMessage.value = getErrorMessage(error, 'AI 词典加载失败。')
+  } finally {
+    if (requestId === currentWordRequestId) {
+      isWordLoading.value = false
+      loadingWord.value = ''
+    }
+  }
 }
 
 function addToMockWordbook() {
-  if (!selectedWordKey.value) {
+  if (!selectedWordKey.value || !selectedWordEntry.value) {
+    return
+  }
+
+  const result = saveVocabularyWord({
+    word: selectedWordEntry.value.word,
+    meaning: selectedWordEntry.value.meaning,
+    definition: selectedWordEntry.value.explanation,
+    partOfSpeech: selectedWordEntry.value.partOfSpeech,
+    example: selectedWordEntry.value.example,
+    sentence: selectedWordEntry.value.sourceSentence,
+    articleTitle: currentChapter.value?.title || currentBook.value?.title || '',
+  })
+
+  vocabularyVersion.value += 1
+
+  if (result.error) {
+    wordbookMessage.value = result.error
+    wordbookMessageType.value = 'error'
     return
   }
 
@@ -420,7 +734,8 @@ function addToMockWordbook() {
     addedWordKeys.value = [...addedWordKeys.value, selectedWordKey.value]
   }
 
-  wordbookMessage.value = '已加入本地模拟生词本'
+  wordbookMessage.value = result.added ? '已加入生词本' : '已在生词本中'
+  wordbookMessageType.value = 'success'
 }
 
 function removeFromMockWordbook(wordKey = selectedWordKey.value) {
@@ -428,14 +743,54 @@ function removeFromMockWordbook(wordKey = selectedWordKey.value) {
     return
   }
 
+  const wordbookItem = mockWordbook.value.find((item) => item.wordKey === wordKey)
+  const removeTarget = wordKey === selectedWordKey.value
+    ? selectedWordEntry.value?.word || wordKey
+    : wordbookItem?.word || wordKey
+  const result = removeVocabularyWord(removeTarget)
+
+  vocabularyVersion.value += 1
   addedWordKeys.value = addedWordKeys.value.filter((item) => item !== wordKey)
-  wordbookMessage.value = '已从本地模拟生词本移出'
+
+  if (result.error) {
+    wordbookMessage.value = result.error
+    wordbookMessageType.value = 'error'
+    return
+  }
+
+  wordbookMessage.value = '已从生词本移出'
+  wordbookMessageType.value = 'success'
+}
+
+function retrySelectedPrototypeWord() {
+  if (!selectedWordKey.value || prototypeDictionary[selectedWordKey.value]) {
+    return
+  }
+
+  const requestWord = selectedWordContext.value?.surface || selectedWordKey.value
+  const normalizedRequestWord = normalizeWord(requestWord)
+
+  if (normalizedRequestWord) {
+    delete wordCache[normalizedRequestWord]
+  }
+
+  selectWord({
+    wordKey: selectedWordKey.value,
+    surface: selectedWordContext.value?.surface || '',
+    sentenceId: selectedWordContext.value?.sentenceId || '',
+  })
 }
 
 function clearSelectedWord() {
+  currentWordRequestId += 1
   selectedWordKey.value = null
   selectedWordContext.value = null
+  selectedAiWordEntry.value = null
+  isWordLoading.value = false
+  loadingWord.value = ''
+  wordErrorMessage.value = ''
   wordbookMessage.value = ''
+  wordbookMessageType.value = 'success'
 }
 
 function openPasteEditor() {
@@ -513,25 +868,14 @@ async function importSelectedBookFile() {
       return
     }
 
-    const result = appendImportedPrototypeBook(importedBook)
+    const result = await appendImportedPrototypeBook(importedBook)
 
     if (!result.ok) {
-      bookImportMessage.value = getBookImportMessage('storage')
-      bookImportMessageType.value = 'error'
+      activateTemporaryImportedBook(importedBook, result.books)
       return
     }
 
-    importedBooks.value = result.books
-    activeBookId.value = importedBook.id
-    activeChapterId.value = importedBook.chapters[0]?.id || fallbackChapterId
-    isBookImportOpen.value = false
-    isPastedArticleActive.value = false
-    sentenceHighlightsByChapter.value = {
-      ...sentenceHighlightsByChapter.value,
-      ...Object.fromEntries(importedBook.chapters.map((chapter) => [chapter.id, {}])),
-    }
-    clearBookImportForm()
-    clearSelectedWord()
+    activateImportedBook(importedBook, result.books)
   } catch {
     bookImportMessage.value = getBookImportMessage('parse')
     bookImportMessageType.value = 'error'
@@ -603,4 +947,10 @@ function getBookImportMessage(reason) {
 
   return messages[reason] || messages.parse
 }
+
+loadImportedBooksIntoShelf()
+
+watch([showTranslation, currentChapterContent], () => {
+  loadMissingPrototypeTranslations()
+}, { immediate: true })
 </script>

@@ -1162,6 +1162,38 @@
   line-height: 1.68;
 }
 
+.translation-text .translation-loading,
+.word-entry-card .translation-loading {
+  color: var(--prototype-muted);
+}
+
+.translation-text .translation-error,
+.word-entry-card .translation-error {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: #b42318;
+}
+
+.translation-fallback {
+  color: var(--prototype-muted);
+}
+
+.translation-retry-button {
+  border: 1px solid #f4c7c3;
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: #b42318;
+  background: #fff7f6;
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.translation-retry-button:hover {
+  background: #fee4e2;
+}
+
 .sentence-shell {
   border-radius: 4px;
   box-decoration-break: clone;

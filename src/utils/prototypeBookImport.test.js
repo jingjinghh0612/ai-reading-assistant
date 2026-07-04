@@ -37,9 +37,122 @@ function installLocalStorage() {
   }
 }
 
+function installIndexedDB() {
+  const databases = new Map()
+
+  function createRequest() {
+    return {
+      result: undefined,
+      error: null,
+      onsuccess: null,
+      onerror: null,
+      onupgradeneeded: null,
+    }
+  }
+
+  function succeedRequest(request, result) {
+    queueMicrotask(() => {
+      request.result = result
+      request.onsuccess?.({ target: request })
+    })
+    return request
+  }
+
+  function createDatabase(state) {
+    return {
+      objectStoreNames: {
+        contains(name) {
+          return state.stores.has(name)
+        },
+      },
+      createObjectStore(name, options = {}) {
+        const store = {
+          keyPath: options.keyPath || 'id',
+          records: new Map(),
+        }
+
+        state.stores.set(name, store)
+        return createObjectStore(store)
+      },
+      transaction(storeNames) {
+        const names = Array.isArray(storeNames) ? storeNames : [storeNames]
+
+        return {
+          objectStore(name) {
+            if (!names.includes(name) || !state.stores.has(name)) {
+              throw new Error(`Missing object store: ${name}`)
+            }
+
+            return createObjectStore(state.stores.get(name))
+          },
+        }
+      },
+      close() {},
+    }
+  }
+
+  function createObjectStore(store) {
+    return {
+      get(key) {
+        return succeedRequest(createRequest(), store.records.get(key))
+      },
+      getAll() {
+        return succeedRequest(createRequest(), Array.from(store.records.values()))
+      },
+      put(value) {
+        const key = value?.[store.keyPath]
+
+        if (!key) {
+          throw new Error(`Missing keyPath: ${store.keyPath}`)
+        }
+
+        store.records.set(key, structuredClone(value))
+        return succeedRequest(createRequest(), key)
+      },
+      delete(key) {
+        store.records.delete(key)
+        return succeedRequest(createRequest(), undefined)
+      },
+      clear() {
+        store.records.clear()
+        return succeedRequest(createRequest(), undefined)
+      },
+    }
+  }
+
+  globalThis.indexedDB = {
+    open(name) {
+      const request = createRequest()
+
+      queueMicrotask(() => {
+        let state = databases.get(name)
+        const isNewDatabase = !state
+
+        if (!state) {
+          state = {
+            stores: new Map(),
+          }
+          databases.set(name, state)
+        }
+
+        request.result = createDatabase(state)
+
+        if (isNewDatabase) {
+          request.onupgradeneeded?.({ target: request, oldVersion: 0 })
+        }
+
+        request.onsuccess?.({ target: request })
+      })
+
+      return request
+    },
+  }
+}
+
 describe('prototype book import utilities', () => {
   beforeEach(() => {
     installLocalStorage()
+    installIndexedDB()
   })
 
   it('creates a real local book with chapters from imported file text', () => {
@@ -107,7 +220,7 @@ describe('prototype book import utilities', () => {
     )
   })
 
-  it('persists imported books without mixing them into prototype fixture data', () => {
+  it('persists imported books in IndexedDB without depending on localStorage capacity', async () => {
     const book = createImportedPrototypeBookFromText({
       id: 'imported-book-3',
       title: 'Stored Book',
@@ -116,17 +229,43 @@ describe('prototype book import utilities', () => {
       text: 'Chapter 1\nStored text.',
     })
 
-    const saved = saveImportedPrototypeBooks([book])
-    const loaded = loadImportedPrototypeBooks()
+    localStorage.setThrowOnSet(true)
+
+    const saved = await saveImportedPrototypeBooks([book])
+    const loaded = await loadImportedPrototypeBooks()
     const contentById = getImportedPrototypeChapterContentById(loaded)
 
     assert.equal(saved, true)
-    assert.equal(JSON.parse(localStorage.getItem(IMPORTED_PROTOTYPE_BOOKS_STORAGE_KEY)).length, 1)
+    assert.equal(localStorage.getItem(IMPORTED_PROTOTYPE_BOOKS_STORAGE_KEY), null)
     assert.equal(loaded[0].title, 'Stored Book')
     assert.equal(contentById['imported-book-3-chapter-1'].title, 'Chapter 1')
   })
 
-  it('prepends a new imported book and reports storage failures', () => {
+  it('migrates legacy localStorage imported books into IndexedDB on first load', async () => {
+    const book = createImportedPrototypeBookFromText({
+      id: 'legacy-imported-book',
+      title: 'Legacy Book',
+      sourceType: 'pdf',
+      fileName: 'legacy.pdf',
+      text: 'Legacy stored text.',
+    })
+
+    localStorage.setItem(IMPORTED_PROTOTYPE_BOOKS_STORAGE_KEY, JSON.stringify([book]))
+
+    const loaded = await loadImportedPrototypeBooks()
+
+    localStorage.removeItem(IMPORTED_PROTOTYPE_BOOKS_STORAGE_KEY)
+
+    const loadedAfterLegacyRemoval = await loadImportedPrototypeBooks()
+
+    assert.equal(loaded[0].id, 'legacy-imported-book')
+    assert.deepEqual(
+      loadedAfterLegacyRemoval.map((item) => item.id),
+      ['legacy-imported-book'],
+    )
+  })
+
+  it('prepends a new imported book in IndexedDB when localStorage cannot grow', async () => {
     const firstBook = createImportedPrototypeBookFromText({
       id: 'imported-first',
       title: 'First Book',
@@ -142,25 +281,19 @@ describe('prototype book import utilities', () => {
       text: 'Next text.',
     })
 
-    saveImportedPrototypeBooks([firstBook])
+    await saveImportedPrototypeBooks([firstBook])
+    localStorage.setThrowOnSet(true)
 
-    const result = appendImportedPrototypeBook(nextBook)
+    const result = await appendImportedPrototypeBook(nextBook)
 
     assert.equal(result.ok, true)
     assert.deepEqual(
       result.books.map((book) => book.id),
       ['imported-next', 'imported-first'],
     )
-
-    localStorage.setThrowOnSet(true)
-
-    const failedResult = appendImportedPrototypeBook(firstBook)
-
-    assert.equal(failedResult.ok, false)
-    assert.equal(failedResult.books.length, 2)
   })
 
-  it('deletes an imported book from local storage without touching the remaining books', () => {
+  it('deletes an imported book from IndexedDB without touching the remaining books', async () => {
     const firstBook = createImportedPrototypeBookFromText({
       id: 'imported-delete-first',
       title: 'Delete First',
@@ -176,10 +309,10 @@ describe('prototype book import utilities', () => {
       text: 'Second book text.',
     })
 
-    saveImportedPrototypeBooks([firstBook, secondBook])
+    await saveImportedPrototypeBooks([firstBook, secondBook])
 
-    const result = removeImportedPrototypeBook('imported-delete-first')
-    const storedBooks = JSON.parse(localStorage.getItem(IMPORTED_PROTOTYPE_BOOKS_STORAGE_KEY))
+    const result = await removeImportedPrototypeBook('imported-delete-first')
+    const storedBooks = await loadImportedPrototypeBooks()
 
     assert.equal(result.deleted, true)
     assert.deepEqual(
@@ -191,7 +324,7 @@ describe('prototype book import utilities', () => {
       ['imported-delete-second'],
     )
 
-    const missingResult = removeImportedPrototypeBook('missing-book')
+    const missingResult = await removeImportedPrototypeBook('missing-book')
 
     assert.equal(missingResult.deleted, false)
     assert.deepEqual(
@@ -200,22 +333,23 @@ describe('prototype book import utilities', () => {
     )
   })
 
-  it('reports storage failures when deleting an imported book', () => {
+  it('reports storage failures when IndexedDB is unavailable', async () => {
+    delete globalThis.indexedDB
+
     const book = createImportedPrototypeBookFromText({
-      id: 'imported-delete-failure',
-      title: 'Delete Failure',
+      id: 'imported-storage-failure',
+      title: 'Storage Failure',
       sourceType: 'pdf',
-      fileName: 'delete-failure.pdf',
+      fileName: 'storage-failure.pdf',
       text: 'Failure text.',
     })
 
-    saveImportedPrototypeBooks([book])
-    localStorage.setThrowOnSet(true)
+    const appendResult = await appendImportedPrototypeBook(book)
+    const deleteResult = await removeImportedPrototypeBook('imported-storage-failure')
 
-    const result = removeImportedPrototypeBook('imported-delete-failure')
-
-    assert.equal(result.deleted, false)
-    assert.equal(result.books.length, 1)
-    assert.equal(result.books[0].id, 'imported-delete-failure')
+    assert.equal(appendResult.ok, false)
+    assert.deepEqual(appendResult.books, [])
+    assert.equal(deleteResult.deleted, false)
+    assert.deepEqual(deleteResult.books, [])
   })
 })

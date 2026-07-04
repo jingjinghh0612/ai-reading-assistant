@@ -1,8 +1,9 @@
-import 'dotenv/config'
+import './config/loadEnv.js'
 import express from 'express'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { explainWord, summarizeText, translateSentence } from './services/aiService.js'
+import { lookupPrototypeWord } from './services/prototypeWordService.js'
 import { setupProxy } from './setupProxy.js'
 
 const app = express()
@@ -61,6 +62,24 @@ app.post('/api/word-explain', async (request, response) => {
     response.json(detail)
   } catch (error) {
     sendApiError(response, error, 'Word explanation failed.')
+  }
+})
+
+app.post('/api/prototype-word-explain', async (request, response) => {
+  const word = request.body?.word?.trim()
+
+  if (!word) {
+    response.status(400).json({
+      message: 'Word is required.',
+    })
+    return
+  }
+
+  try {
+    const detail = await lookupPrototypeWord(word)
+    response.json(detail)
+  } catch (error) {
+    sendApiError(response, error, 'Prototype word explanation failed.')
   }
 })
 

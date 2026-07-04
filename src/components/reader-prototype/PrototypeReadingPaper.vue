@@ -29,7 +29,7 @@
               @keydown.space.prevent="toggleSentenceHighlight(sentence.id)"
             >
               <template
-                v-for="token in sentence.tokens"
+                v-for="token in getClickableSentenceTokens(sentence)"
                 :key="token.id"
               >
                 <button
@@ -50,15 +50,29 @@
             </span>
           </template>
         </p>
-        <p v-if="showTranslation" class="translation-text">
-          {{ paragraph.translation }}
-        </p>
+        <div v-if="showTranslation" class="translation-text">
+          <span v-if="paragraph.translation">{{ paragraph.translation }}</span>
+          <span v-else-if="paragraph.isTranslationLoading" class="translation-loading">正在生成译文...</span>
+          <span v-else-if="paragraph.translationErrorMessage" class="translation-error">
+            {{ paragraph.translationErrorMessage }}
+            <button
+              class="translation-retry-button"
+              type="button"
+              @click="$emit('retry-translation', paragraph.id)"
+            >
+              重试
+            </button>
+          </span>
+          <span v-else class="translation-fallback">暂无译文</span>
+        </div>
       </section>
     </article>
   </section>
 </template>
 
 <script setup>
+import { getPrototypeClickableSentenceTokens } from '../../data/readerPrototypeSelectors.js'
+
 const props = defineProps({
   chapter: {
     type: Object,
@@ -98,7 +112,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['select-word', 'toggle-sentence-highlight'])
+const emit = defineEmits(['select-word', 'retry-translation', 'toggle-sentence-highlight'])
 
 function getSentenceHighlightColor(sentence) {
   return props.sentenceHighlights[sentence.id] || ''
@@ -120,5 +134,9 @@ function toggleSentenceHighlight(sentenceId) {
   }
 
   emit('toggle-sentence-highlight', sentenceId)
+}
+
+function getClickableSentenceTokens(sentence) {
+  return getPrototypeClickableSentenceTokens(sentence)
 }
 </script>

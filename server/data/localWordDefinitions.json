@@ -1,0 +1,326 @@
+{
+  "the": {
+    "word": "the",
+    "meaning": "这个；那个",
+    "definition": "Used before a noun to show that the person or thing is already known.",
+    "partOfSpeech": "article",
+    "example": "The quiet room made each sentence feel clear.",
+    "phonetic": "/ðə/",
+    "forms": []
+  },
+  "a": {
+    "word": "a",
+    "meaning": "一个；某个",
+    "definition": "Used before a singular noun when referring to something for the first time.",
+    "partOfSpeech": "article",
+    "example": "She found a narrow path through the fence.",
+    "phonetic": "/ə/",
+    "forms": ["an"]
+  },
+  "this": {
+    "word": "this",
+    "meaning": "这个",
+    "definition": "Used to refer to a person, thing, or idea that is near or has just been mentioned.",
+    "partOfSpeech": "determiner / pronoun",
+    "example": "This sentence helped her understand the story.",
+    "phonetic": "/ðɪs/",
+    "forms": []
+  },
+  "that": {
+    "word": "that",
+    "meaning": "那个；那",
+    "definition": "Used to refer to a person, thing, or idea that is farther away or already mentioned.",
+    "partOfSpeech": "determiner / pronoun",
+    "example": "She did not know what the garden would reveal, only that it felt quiet.",
+    "phonetic": "/ðæt/",
+    "forms": []
+  },
+  "it": {
+    "word": "it",
+    "meaning": "它；这件事",
+    "definition": "Used to refer to a thing, animal, situation, or idea already mentioned.",
+    "partOfSpeech": "pronoun",
+    "example": "It helped her plan to return at dawn.",
+    "phonetic": "/ɪt/",
+    "forms": []
+  },
+  "she": {
+    "word": "she",
+    "meaning": "她",
+    "definition": "Used to refer to a female person or animal already mentioned.",
+    "partOfSpeech": "pronoun",
+    "example": "She had planned to read for only ten minutes.",
+    "phonetic": "/ʃiː/",
+    "forms": ["her", "hers"]
+  },
+  "he": {
+    "word": "he",
+    "meaning": "他",
+    "definition": "Used to refer to a male person or animal already mentioned.",
+    "partOfSpeech": "pronoun",
+    "example": "He read the sentence again.",
+    "phonetic": "/hiː/",
+    "forms": ["him", "his"]
+  },
+  "read": {
+    "word": "read",
+    "meaning": "阅读；读",
+    "definition": "To look at and understand written words.",
+    "partOfSpeech": "verb",
+    "example": "She had planned to read for only ten minutes.",
+    "phonetic": "/riːd/",
+    "forms": ["reads", "reading"]
+  },
+  "make": {
+    "word": "make",
+    "meaning": "制造；使得",
+    "definition": "To create something or cause something to happen.",
+    "partOfSpeech": "verb",
+    "example": "The quiet room made each sentence feel clear.",
+    "phonetic": "/meɪk/",
+    "forms": ["makes", "made", "making"]
+  },
+  "see": {
+    "word": "see",
+    "meaning": "看见；理解",
+    "definition": "To notice someone or something with your eyes, or to understand something.",
+    "partOfSpeech": "verb",
+    "example": "Clara could see a narrow path through the fence.",
+    "phonetic": "/siː/",
+    "forms": ["sees", "saw", "seen", "seeing"]
+  },
+  "know": {
+    "word": "know",
+    "meaning": "知道；了解",
+    "definition": "To have information or understanding about something.",
+    "partOfSpeech": "verb",
+    "example": "She did not know what the garden would reveal.",
+    "phonetic": "/noʊ/",
+    "forms": ["knows", "knew", "known", "knowing"]
+  },
+  "feel": {
+    "word": "feel",
+    "meaning": "感觉；觉得",
+    "definition": "To experience an emotion or physical sensation.",
+    "partOfSpeech": "verb",
+    "example": "Each sentence felt unusually clear.",
+    "phonetic": "/fiːl/",
+    "forms": ["feels", "felt", "feeling"]
+  },
+  "clear": {
+    "word": "clear",
+    "meaning": "清楚的；明亮的",
+    "definition": "Easy to understand, see, or hear.",
+    "partOfSpeech": "adjective",
+    "example": "Each sentence felt unusually clear.",
+    "phonetic": "/klɪr/",
+    "forms": ["clearer", "clearest", "clearly"]
+  },
+  "old": {
+    "word": "old",
+    "meaning": "老的；旧的",
+    "definition": "Having lived for a long time or existed for a long time.",
+    "partOfSpeech": "adjective",
+    "example": "Clara arrived at the old observatory.",
+    "phonetic": "/oʊld/",
+    "forms": ["older", "oldest"]
+  },
+  "small": {
+    "word": "small",
+    "meaning": "小的",
+    "definition": "Not large in size, amount, or degree.",
+    "partOfSpeech": "adjective",
+    "example": "The garden would reveal a small secret.",
+    "phonetic": "/smɔːl/",
+    "forms": ["smaller", "smallest"]
+  },
+  "word": {
+    "word": "word",
+    "meaning": "单词；话语",
+    "definition": "A single unit of language that has meaning.",
+    "partOfSpeech": "noun",
+    "example": "She clicked a word to see its meaning.",
+    "phonetic": "/wɜːrd/",
+    "forms": ["words"]
+  },
+  "chapter": {
+    "word": "chapter",
+    "meaning": "章节",
+    "definition": "A main section of a book.",
+    "partOfSpeech": "noun",
+    "example": "The chapter was called The Window of Light.",
+    "phonetic": "/ˈtʃæptər/",
+    "forms": ["chapters"]
+  },
+  "story": {
+    "word": "story",
+    "meaning": "故事",
+    "definition": "A description of real or imagined events.",
+    "partOfSpeech": "noun",
+    "example": "The story helped her notice quiet details.",
+    "phonetic": "/ˈstɔːri/",
+    "forms": ["stories"]
+  },
+  "reader": {
+    "word": "reader",
+    "meaning": "读者",
+    "definition": "A person who reads.",
+    "partOfSpeech": "noun",
+    "example": "A careful reader notices repeated patterns.",
+    "phonetic": "/riːdər/",
+    "forms": ["readers"]
+  },
+  "curious": {
+    "word": "curious",
+    "meaning": "好奇的",
+    "definition": "Wanting to know or learn something.",
+    "partOfSpeech": "adjective",
+    "example": "Curious readers notice patterns.",
+    "phonetic": "/ˈkjʊriəs/",
+    "forms": []
+  },
+  "notice": {
+    "word": "notice",
+    "meaning": "注意到",
+    "definition": "To become aware of something.",
+    "partOfSpeech": "verb",
+    "example": "She noticed a narrow path through the fence.",
+    "phonetic": "/ˈnoʊtɪs/",
+    "forms": ["notices", "noticed", "noticing"]
+  },
+  "pattern": {
+    "word": "pattern",
+    "meaning": "模式；规律",
+    "definition": "A repeated or regular way in which something happens.",
+    "partOfSpeech": "noun",
+    "example": "The pattern appeared again in the next sentence.",
+    "phonetic": "/ˈpætərn/",
+    "forms": ["patterns"]
+  },
+  "garden": {
+    "word": "garden",
+    "meaning": "花园",
+    "definition": "A piece of land used for growing flowers or plants.",
+    "partOfSpeech": "noun",
+    "example": "The garden gate had been locked for years.",
+    "phonetic": "/ˈɡɑːrdən/",
+    "forms": ["gardens"]
+  },
+  "gate": {
+    "word": "gate",
+    "meaning": "大门；门",
+    "definition": "A movable barrier used to close an opening in a wall or fence.",
+    "partOfSpeech": "noun",
+    "example": "The gate opened slowly at dawn.",
+    "phonetic": "/ɡeɪt/",
+    "forms": ["gates"]
+  },
+  "lock": {
+    "word": "lock",
+    "meaning": "锁上；锁",
+    "definition": "To fasten something with a lock.",
+    "partOfSpeech": "verb / noun",
+    "example": "The garden gate had been locked for years.",
+    "phonetic": "/lɑːk/",
+    "forms": ["locks", "locked", "locking"]
+  },
+  "narrow": {
+    "word": "narrow",
+    "meaning": "狭窄的",
+    "definition": "Not wide.",
+    "partOfSpeech": "adjective",
+    "example": "Clara could see a narrow path through the fence.",
+    "phonetic": "/ˈnæroʊ/",
+    "forms": ["narrower", "narrowest"]
+  },
+  "path": {
+    "word": "path",
+    "meaning": "小路；路径",
+    "definition": "A track made for walking.",
+    "partOfSpeech": "noun",
+    "example": "A narrow path ran through the garden.",
+    "phonetic": "/pæθ/",
+    "forms": ["paths"]
+  },
+  "fence": {
+    "word": "fence",
+    "meaning": "栅栏；围栏",
+    "definition": "A structure that separates or encloses an area.",
+    "partOfSpeech": "noun",
+    "example": "She looked through the fence.",
+    "phonetic": "/fens/",
+    "forms": ["fences"]
+  },
+  "observatory": {
+    "word": "observatory",
+    "meaning": "天文台",
+    "definition": "A building used for watching stars, planets, and other objects in space.",
+    "partOfSpeech": "noun",
+    "example": "Clara arrived at the old observatory before dawn.",
+    "phonetic": "/əbˈzɜːrvətɔːri/",
+    "forms": ["observatories"]
+  },
+  "sentence": {
+    "word": "sentence",
+    "meaning": "句子",
+    "definition": "A group of words that expresses a complete thought.",
+    "partOfSpeech": "noun",
+    "example": "Each sentence felt unusually clear.",
+    "phonetic": "/ˈsentəns/",
+    "forms": ["sentences"]
+  },
+  "each": {
+    "word": "each",
+    "meaning": "每个；各自",
+    "definition": "Every one of two or more people or things, considered separately.",
+    "partOfSpeech": "determiner / pronoun",
+    "example": "Each sentence felt unusually clear.",
+    "phonetic": "/iːtʃ/",
+    "forms": []
+  },
+  "plan": {
+    "word": "plan",
+    "meaning": "计划；打算",
+    "definition": "An idea or arrangement for doing something.",
+    "partOfSpeech": "noun / verb",
+    "example": "She had planned to read for only ten minutes.",
+    "phonetic": "/plæn/",
+    "forms": ["plans", "planned", "planning"]
+  },
+  "quiet": {
+    "word": "quiet",
+    "meaning": "安静的",
+    "definition": "Making very little noise.",
+    "partOfSpeech": "adjective",
+    "example": "The quiet room made each sentence clear.",
+    "phonetic": "/ˈkwaɪət/",
+    "forms": ["quieter", "quietest", "quietly"]
+  },
+  "reveal": {
+    "word": "reveal",
+    "meaning": "揭示；透露",
+    "definition": "To show something that was hidden or unknown.",
+    "partOfSpeech": "verb",
+    "example": "The garden would reveal a small secret.",
+    "phonetic": "/rɪˈviːl/",
+    "forms": ["reveals", "revealed", "revealing"]
+  },
+  "copy": {
+    "word": "copy",
+    "meaning": "复制；副本",
+    "definition": "To make something that is the same as another thing.",
+    "partOfSpeech": "verb / noun",
+    "example": "She copied the sentence into her notebook.",
+    "phonetic": "/ˈkɑːpi/",
+    "forms": ["copies", "copied", "copying"]
+  },
+  "dawn": {
+    "word": "dawn",
+    "meaning": "黎明；破晓",
+    "definition": "The time in the morning when light first appears.",
+    "partOfSpeech": "noun",
+    "example": "She planned to return at dawn.",
+    "phonetic": "/dɔːn/",
+    "forms": []
+  }
+}

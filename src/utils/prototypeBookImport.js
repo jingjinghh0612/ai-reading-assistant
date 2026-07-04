@@ -1,9 +1,16 @@
 import { splitIntoSentences } from './sentence.js'
-import { getStorageItem, setStorageItem } from './storage.js'
+import { getStorageItem } from './storage.js'
 import { splitPrototypeReadableParagraphs } from './prototypeParagraphs.js'
 import { normalizeWord, splitSentenceIntoTokens } from './word.js'
 
 export const IMPORTED_PROTOTYPE_BOOKS_STORAGE_KEY = 'ai-reading:reader-prototype:imported-books'
+const IMPORTED_BOOKS_DB_NAME = 'ai-reading-reader-prototype'
+const IMPORTED_BOOKS_DB_VERSION = 1
+const IMPORTED_BOOKS_STORE_NAME = 'importedBooks'
+const IMPORTED_BOOKS_META_STORE_NAME = 'metadata'
+const IMPORTED_BOOKS_ORDER_KEY = 'bookOrder'
+let importedBooksDatabasePromise = null
+let importedBooksIndexedDbReference = null
 
 export function createImportedPrototypeBookFromText({
   id,
@@ -130,7 +137,32 @@ export function splitImportedTextIntoChapterBlocks(text, fallbackTitle = 'Import
   }))
 }
 
-export function loadImportedPrototypeBooks() {
+export async function loadImportedPrototypeBooks() {
+  const indexedDbBooks = await loadImportedPrototypeBooksFromIndexedDb()
+
+  if (indexedDbBooks) {
+    const legacyBooks = loadLegacyImportedPrototypeBooks()
+
+    if (legacyBooks.length) {
+      const indexedDbBookIds = new Set(indexedDbBooks.map((book) => book.id))
+      const migratedBooks = [
+        ...legacyBooks.filter((book) => !indexedDbBookIds.has(book.id)),
+        ...indexedDbBooks,
+      ]
+
+      if (await saveImportedPrototypeBooks(migratedBooks)) {
+        clearLegacyImportedPrototypeBooks()
+        return migratedBooks
+      }
+    }
+
+    return indexedDbBooks
+  }
+
+  return loadLegacyImportedPrototypeBooks()
+}
+
+function loadLegacyImportedPrototypeBooks() {
   const rawValue = getStorageItem(IMPORTED_PROTOTYPE_BOOKS_STORAGE_KEY, '[]')
 
   try {
@@ -146,12 +178,40 @@ export function loadImportedPrototypeBooks() {
   }
 }
 
-export function saveImportedPrototypeBooks(books) {
-  return setStorageItem(IMPORTED_PROTOTYPE_BOOKS_STORAGE_KEY, JSON.stringify(Array.isArray(books) ? books : []))
+function clearLegacyImportedPrototypeBooks() {
+  try {
+    localStorage.removeItem(IMPORTED_PROTOTYPE_BOOKS_STORAGE_KEY)
+  } catch {}
 }
 
-export function appendImportedPrototypeBook(book) {
-  const existingBooks = loadImportedPrototypeBooks()
+export async function saveImportedPrototypeBooks(books) {
+  const normalizedBooks = Array.isArray(books) ? books.map(normalizeImportedBook).filter(Boolean) : []
+  const database = await openImportedBooksDatabase()
+
+  if (!database) {
+    return false
+  }
+
+  try {
+    await clearObjectStore(database, IMPORTED_BOOKS_STORE_NAME)
+
+    for (const book of normalizedBooks) {
+      await putObjectStoreValue(database, IMPORTED_BOOKS_STORE_NAME, book)
+    }
+
+    await putObjectStoreValue(database, IMPORTED_BOOKS_META_STORE_NAME, {
+      key: IMPORTED_BOOKS_ORDER_KEY,
+      value: normalizedBooks.map((book) => book.id),
+    })
+
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function appendImportedPrototypeBook(book) {
+  const existingBooks = await loadImportedPrototypeBooks()
 
   if (!book) {
     return {
@@ -162,7 +222,7 @@ export function appendImportedPrototypeBook(book) {
 
   const nextBooks = [book, ...existingBooks.filter((item) => item.id !== book.id)]
 
-  if (!saveImportedPrototypeBooks(nextBooks)) {
+  if (!(await saveImportedPrototypeBooks(nextBooks))) {
     return {
       ok: false,
       books: existingBooks,
@@ -175,8 +235,8 @@ export function appendImportedPrototypeBook(book) {
   }
 }
 
-export function removeImportedPrototypeBook(bookId) {
-  const existingBooks = loadImportedPrototypeBooks()
+export async function removeImportedPrototypeBook(bookId) {
+  const existingBooks = await loadImportedPrototypeBooks()
   const nextBooks = existingBooks.filter((book) => book.id !== bookId)
 
   if (nextBooks.length === existingBooks.length) {
@@ -186,7 +246,7 @@ export function removeImportedPrototypeBook(bookId) {
     }
   }
 
-  if (!saveImportedPrototypeBooks(nextBooks)) {
+  if (!(await saveImportedPrototypeBooks(nextBooks))) {
     return {
       deleted: false,
       books: existingBooks,
@@ -197,6 +257,117 @@ export function removeImportedPrototypeBook(bookId) {
     deleted: true,
     books: nextBooks,
   }
+}
+
+async function loadImportedPrototypeBooksFromIndexedDb() {
+  const database = await openImportedBooksDatabase()
+
+  if (!database) {
+    return null
+  }
+
+  try {
+    const [books, orderRecord] = await Promise.all([
+      getAllObjectStoreValues(database, IMPORTED_BOOKS_STORE_NAME),
+      getObjectStoreValue(database, IMPORTED_BOOKS_META_STORE_NAME, IMPORTED_BOOKS_ORDER_KEY),
+    ])
+    const order = Array.isArray(orderRecord?.value) ? orderRecord.value : []
+
+    return sortImportedBooksByStoredOrder(books.map(normalizeImportedBook).filter(Boolean), order)
+  } catch {
+    return null
+  }
+}
+
+function sortImportedBooksByStoredOrder(books, order) {
+  if (!order.length) {
+    return [...books].sort((a, b) => new Date(b.importedAt).getTime() - new Date(a.importedAt).getTime())
+  }
+
+  const orderIndex = new Map(order.map((bookId, index) => [bookId, index]))
+
+  return [...books].sort((a, b) => {
+    const firstIndex = orderIndex.has(a.id) ? orderIndex.get(a.id) : Number.MAX_SAFE_INTEGER
+    const secondIndex = orderIndex.has(b.id) ? orderIndex.get(b.id) : Number.MAX_SAFE_INTEGER
+
+    if (firstIndex !== secondIndex) {
+      return firstIndex - secondIndex
+    }
+
+    return new Date(b.importedAt).getTime() - new Date(a.importedAt).getTime()
+  })
+}
+
+async function openImportedBooksDatabase() {
+  if (!globalThis.indexedDB?.open) {
+    return null
+  }
+
+  if (importedBooksIndexedDbReference !== globalThis.indexedDB) {
+    importedBooksIndexedDbReference = globalThis.indexedDB
+    importedBooksDatabasePromise = null
+  }
+
+  if (!importedBooksDatabasePromise) {
+    importedBooksDatabasePromise = new Promise((resolve) => {
+      const request = indexedDB.open(IMPORTED_BOOKS_DB_NAME, IMPORTED_BOOKS_DB_VERSION)
+
+      request.onupgradeneeded = (event) => {
+        const database = event.target.result
+
+        if (!database.objectStoreNames.contains(IMPORTED_BOOKS_STORE_NAME)) {
+          database.createObjectStore(IMPORTED_BOOKS_STORE_NAME, { keyPath: 'id' })
+        }
+
+        if (!database.objectStoreNames.contains(IMPORTED_BOOKS_META_STORE_NAME)) {
+          database.createObjectStore(IMPORTED_BOOKS_META_STORE_NAME, { keyPath: 'key' })
+        }
+      }
+
+      request.onsuccess = () => {
+        resolve(request.result)
+      }
+
+      request.onerror = () => {
+        importedBooksDatabasePromise = null
+        resolve(null)
+      }
+    })
+  }
+
+  return importedBooksDatabasePromise
+}
+
+function getObjectStore(database, storeName, mode = 'readonly') {
+  return database.transaction(storeName, mode).objectStore(storeName)
+}
+
+function requestToPromise(request) {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => {
+      resolve(request.result)
+    }
+
+    request.onerror = () => {
+      reject(request.error || new Error('IndexedDB request failed.'))
+    }
+  })
+}
+
+function getObjectStoreValue(database, storeName, key) {
+  return requestToPromise(getObjectStore(database, storeName).get(key))
+}
+
+function getAllObjectStoreValues(database, storeName) {
+  return requestToPromise(getObjectStore(database, storeName).getAll())
+}
+
+function putObjectStoreValue(database, storeName, value) {
+  return requestToPromise(getObjectStore(database, storeName, 'readwrite').put(value))
+}
+
+function clearObjectStore(database, storeName) {
+  return requestToPromise(getObjectStore(database, storeName, 'readwrite').clear())
 }
 
 export function getImportedPrototypeChapterContentById(books) {

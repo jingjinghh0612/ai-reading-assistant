@@ -11,6 +11,9 @@ import {
   getPrototypeParagraphs,
   getPrototypeReadingProgress,
   mapDictionaryEntryToWordPanel,
+  mapAiWordDetailToWordPanel,
+  getPrototypeLocalParagraphTranslation,
+  getPrototypeParagraphSourceText,
   createPastedPrototypeChapterContent,
 } from './readerPrototypeSelectors.js'
 
@@ -190,6 +193,90 @@ describe('reader prototype selectors', () => {
     )
   })
 
+  it('prepares paragraph text and local translations for AI translation fallback', () => {
+    assert.equal(typeof getPrototypeLocalParagraphTranslation, 'function')
+    assert.equal(typeof getPrototypeParagraphSourceText, 'function')
+
+    assert.equal(
+      getPrototypeLocalParagraphTranslation({
+        translation: 'Local paragraph translation.',
+        sentences: [
+          {
+            text: 'The local paragraph already has a translation.',
+            translation: 'Local sentence translation.',
+          },
+        ],
+      }),
+      'Local paragraph translation.',
+    )
+    assert.equal(
+      getPrototypeLocalParagraphTranslation({
+        translation: '粘贴文章暂未生成译文。',
+        sentences: [
+          {
+            text: 'Sentence one.',
+            translation: '第一句译文。',
+          },
+          {
+            text: 'Sentence two.',
+            translation: '第二句译文。',
+          },
+        ],
+      }),
+      '第一句译文。 第二句译文。',
+    )
+    assert.equal(
+      getPrototypeLocalParagraphTranslation({
+        translation: '导入书籍暂未生成译文。',
+        sentences: [{ text: 'Imported text without a translation.', translation: '' }],
+      }),
+      '',
+    )
+    assert.equal(
+      getPrototypeParagraphSourceText({
+        text: 'Ignored paragraph text.',
+        sentences: [{ text: 'First sentence.' }, { text: 'Second sentence.' }],
+      }),
+      'First sentence. Second sentence.',
+    )
+  })
+
+  it('maps AI word explanations to the prototype word panel contract with sentence context', () => {
+    assert.equal(typeof mapAiWordDetailToWordPanel, 'function')
+
+    assert.deepEqual(
+      mapAiWordDetailToWordPanel(
+        {
+          word: 'curious',
+          meaning: '好奇的',
+          definition: 'Wanting to know or learn something.',
+          partOfSpeech: 'adj.',
+          example: 'Curious readers notice patterns.',
+        },
+        {
+          wordKey: 'curious',
+          surface: 'Curious',
+          sourceSentence: 'Curious readers notice patterns.',
+          sourceTranslation: '好奇的读者会注意到规律。',
+        },
+      ),
+      {
+        word: 'Curious',
+        lemma: 'curious',
+        phonetic: '',
+        partOfSpeech: 'adj.',
+        meaning: '好奇的',
+        explanation: 'Wanting to know or learn something.',
+        example: 'Curious readers notice patterns.',
+        exampleTranslation: '',
+        forms: [],
+        sourceSentence: 'Curious readers notice patterns.',
+        sourceTranslation: '好奇的读者会注意到规律。',
+        isAiGenerated: true,
+      },
+    )
+  })
+
   it('creates temporary prototype chapter content from pasted plain text', () => {
     const pastedChapter = createPastedPrototypeChapterContent(
       'First pasted sentence. Second sentence!\n\nAnother paragraph asks why?',
@@ -269,6 +356,9 @@ describe('reader prototype selectors', () => {
       sourceSentence: 'Curious readers notice patterns.',
       sourceTranslation: '',
     }
+    const panel = mapDictionaryEntryToWordPanel(null, context)
+
+    assert.equal(panel.explanation, '')
 
     assert.deepEqual(mapDictionaryEntryToWordPanel(null, context), {
       word: 'Curious',
@@ -276,7 +366,7 @@ describe('reader prototype selectors', () => {
       phonetic: '',
       partOfSpeech: '',
       meaning: '暂无本地释义',
-      explanation: '这是粘贴文章中的词，当前原型词典还没有收录。',
+      explanation: '',
       example: '',
       exampleTranslation: '',
       forms: [],
@@ -315,6 +405,90 @@ describe('reader prototype selectors', () => {
       forms: ['reveal', 'reveals', 'revealed', 'revealing'],
       sourceSentence: clickedContext.sourceSentence,
       sourceTranslation: clickedContext.sourceTranslation,
+    })
+  })
+
+  it('creates clickable word tokens from unstructured prototype text', () => {
+    assert.equal(typeof selectors.getPrototypeClickableSentenceTokens, 'function')
+
+    const [firstWord, firstGap, secondWord] = selectors.getPrototypeClickableSentenceTokens({
+      id: 's1',
+      tokens: [
+        {
+          id: 's1-t1',
+          text: 'Curious readers',
+        },
+      ],
+    })
+
+    assert.deepEqual(firstWord, {
+      id: 's1-t1-w1',
+      text: 'Curious',
+      surface: 'Curious',
+      lemma: 'curious',
+      wordKey: 'curious',
+      sentenceId: 's1',
+      isGenerated: true,
+    })
+    assert.deepEqual(firstGap, {
+      id: 's1-t1-t2',
+      text: ' ',
+    })
+    assert.deepEqual(secondWord, {
+      id: 's1-t1-w3',
+      text: 'readers',
+      surface: 'readers',
+      lemma: 'readers',
+      wordKey: 'readers',
+      sentenceId: 's1',
+      isGenerated: true,
+    })
+  })
+
+  it('preserves whitespace around generated clickable words', () => {
+    const tokens = selectors.getPrototypeClickableSentenceTokens({
+      id: 's1',
+      tokens: [
+        {
+          id: 's1-t1',
+          text: 'She had ',
+        },
+        {
+          id: 's1-plan',
+          text: 'planned',
+          surface: 'planned',
+          lemma: 'plan',
+          wordKey: 'plan',
+          sentenceId: 's1',
+        },
+        {
+          id: 's1-t2',
+          text: ' to read.',
+        },
+      ],
+    })
+
+    assert.equal(
+      tokens.map((token) => token.text).join(''),
+      'She had planned to read.',
+    )
+  })
+
+  it('keeps source sentence context for generated clickable words', () => {
+    const clickedContext = selectors.getPrototypeWordContext(prototypeChapterContent['chapter-3'], {
+      wordKey: 'garden',
+      surface: 'garden',
+      sentenceId: 'chapter-3-p1-s1',
+    })
+
+    assert.deepEqual(clickedContext, {
+      wordKey: 'garden',
+      surface: 'garden',
+      paragraphId: 'p1',
+      sentenceId: 'chapter-3-p1-s1',
+      sourceSentence:
+        'The garden gate had been locked for years, but Clara could still see a narrow path through the fence.',
+      sourceTranslation: prototypeChapterContent['chapter-3'].paragraphs[0].sentences[0].translation,
     })
   })
 

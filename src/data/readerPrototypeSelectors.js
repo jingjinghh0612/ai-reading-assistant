@@ -4,6 +4,21 @@ import { normalizeWord, splitSentenceIntoTokens } from '../utils/word.js'
 
 const PASTED_CHAPTER_ID = 'pasted-article'
 const PASTED_BOOK_ID = 'pasted-book'
+const TRANSLATION_PLACEHOLDER_PATTERNS = [
+  /暂未生成译文/,
+  /鏆傛湭鐢熸垚璇戞枃/,
+  /no translation/i,
+]
+
+function normalizePrototypeText(value) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function isPrototypeTranslationPlaceholder(value) {
+  const text = normalizePrototypeText(value)
+
+  return !text || TRANSLATION_PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(text))
+}
 
 export function findPrototypeBook(books, activeBookId) {
   return books.find((book) => book.id === activeBookId) || books[0] || null
@@ -50,6 +65,28 @@ export function findPrototypeChapter(chapters, activeChapterId, chapterContent) 
 
 export function getPrototypeParagraphs(chapterContent) {
   return chapterContent?.paragraphs || []
+}
+
+export function getPrototypeParagraphSourceText(paragraph) {
+  const sentenceText = (paragraph?.sentences || [])
+    .map((sentence) => normalizePrototypeText(sentence.text))
+    .filter(Boolean)
+    .join(' ')
+
+  return sentenceText || normalizePrototypeText(paragraph?.text)
+}
+
+export function getPrototypeLocalParagraphTranslation(paragraph) {
+  const paragraphTranslation = normalizePrototypeText(paragraph?.translation)
+
+  if (paragraphTranslation && !isPrototypeTranslationPlaceholder(paragraphTranslation)) {
+    return paragraphTranslation
+  }
+
+  return (paragraph?.sentences || [])
+    .map((sentence) => normalizePrototypeText(sentence.translation))
+    .filter((translation) => translation && !isPrototypeTranslationPlaceholder(translation))
+    .join(' ')
 }
 
 export function getPrototypeReadingProgress(book, chapter) {
@@ -152,6 +189,55 @@ export function getPrototypeMockWordbook(chapterContent, dictionary, addedWordKe
     })
 }
 
+export function getPrototypeClickableSentenceTokens(sentence) {
+  return (sentence?.tokens || []).flatMap((token) => {
+    const sentenceId = token.sentenceId || sentence?.id || ''
+
+    if (token.wordKey) {
+      return [
+        {
+          ...token,
+          sentenceId,
+        },
+      ]
+    }
+
+    return splitPrototypeTextTokenForClicks(token, sentenceId)
+  })
+}
+
+function splitPrototypeTextTokenForClicks(token, sentenceId) {
+  const sourceText = typeof token?.text === 'string' ? token.text : ''
+
+  if (!sourceText) {
+    return []
+  }
+
+  const tokenBaseId = token?.id || `${sentenceId || 'sentence'}-token`
+
+  return splitSentenceIntoTokens(sourceText).map((text, index) => {
+    const tokenIndex = index + 1
+    const wordKey = normalizeWord(text)
+
+    if (!wordKey) {
+      return {
+        id: `${tokenBaseId}-t${tokenIndex}`,
+        text,
+      }
+    }
+
+    return {
+      id: `${tokenBaseId}-w${tokenIndex}`,
+      text,
+      surface: text,
+      lemma: wordKey,
+      wordKey,
+      sentenceId,
+      isGenerated: true,
+    }
+  })
+}
+
 export function getPrototypeWordContext(chapterContent, selection) {
   if (!chapterContent || !selection?.wordKey) {
     return null
@@ -164,13 +250,13 @@ export function getPrototypeWordContext(chapterContent, selection) {
       }
 
       const token = sentence.tokens?.find((item) => item.wordKey === selection.wordKey)
-      if (!token) {
+      if (!token && sentence.id !== selection.sentenceId) {
         continue
       }
 
       return {
         wordKey: selection.wordKey,
-        surface: selection.surface || token.surface || token.text || '',
+        surface: selection.surface || token?.surface || token?.text || '',
         paragraphId: paragraph.id,
         sentenceId: sentence.id,
         sourceSentence: sentence.text || '',
@@ -201,7 +287,7 @@ export function mapDictionaryEntryToWordPanel(entry, context = null) {
       phonetic: '',
       partOfSpeech: '',
       meaning: '暂无本地释义',
-      explanation: '这是粘贴文章中的词，当前原型词典还没有收录。',
+      explanation: '',
       example: '',
       exampleTranslation: '',
       forms: [],
@@ -228,6 +314,30 @@ export function mapDictionaryEntryToWordPanel(entry, context = null) {
     forms: entry.forms || [],
     sourceSentence: context?.sourceSentence || entry.sourceSentence || '',
     sourceTranslation: context?.sourceTranslation || '',
+  }
+}
+
+export function mapAiWordDetailToWordPanel(detail, context = null) {
+  if (!detail && !context) {
+    return null
+  }
+
+  const word = normalizePrototypeText(context?.surface) || normalizePrototypeText(detail?.word) || context?.wordKey || ''
+  const lemma = normalizeWord(context?.wordKey || detail?.word || word)
+
+  return {
+    word,
+    lemma,
+    phonetic: '',
+    partOfSpeech: normalizePrototypeText(detail?.partOfSpeech),
+    meaning: normalizePrototypeText(detail?.meaning),
+    explanation: normalizePrototypeText(detail?.definition),
+    example: normalizePrototypeText(detail?.example),
+    exampleTranslation: '',
+    forms: [],
+    sourceSentence: normalizePrototypeText(context?.sourceSentence),
+    sourceTranslation: normalizePrototypeText(context?.sourceTranslation),
+    isAiGenerated: true,
   }
 }
 

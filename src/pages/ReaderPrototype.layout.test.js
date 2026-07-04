@@ -76,7 +76,7 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(readerPrototypeSource, /selectedWordKey/)
     assert.match(readerPrototypeSource, /selectedWordEntry/)
     assert.match(readerPrototypeSource, /selectWord/)
-    assert.match(readerPrototypeSource, /已加入本地模拟生词本/)
+    assert.match(readerPrototypeSource, /已加入生词本/)
     assert.doesNotMatch(readerPrototypeSource, /const books\s*=\s*\[/)
     assert.doesNotMatch(readerPrototypeSource, /const chapters\s*=\s*\[/)
     assert.doesNotMatch(readerPrototypeSource, /const paragraphs\s*=\s*\[/)
@@ -115,7 +115,7 @@ describe('reader prototype word definition panel contract', () => {
     assert.doesNotMatch(readerPrototypeSource, /entry\.examples/)
   })
 
-  it('renders structured sentence tokens instead of matching words from raw strings', () => {
+  it('renders clickable sentence tokens from structured data helpers instead of raw string matching', () => {
     assert.match(readerPrototypeDataSource, /sentences:\s*\[/)
     assert.match(readerPrototypeDataSource, /tokens:\s*\[/)
     assert.match(readerPrototypeDataSource, /highlighted:\s*true/)
@@ -133,7 +133,8 @@ describe('reader prototype word definition panel contract', () => {
     assert.doesNotMatch(readerPrototypeDataSource, /copied:\s*\{[\s\S]*id:\s*'copied'/)
 
     assert.match(readingPaperSource, /paragraph\.sentences/)
-    assert.match(readingPaperSource, /sentence\.tokens/)
+    assert.match(readingPaperSource, /getPrototypeClickableSentenceTokens/)
+    assert.match(readingPaperSource, /getClickableSentenceTokens\(sentence\)/)
     assert.match(readingPaperSource, /token\.wordKey/)
     assert.match(readingPaperSource, /word-token/)
     assert.match(readingPaperSource, /select-word/)
@@ -167,6 +168,65 @@ describe('reader prototype word definition panel contract', () => {
     assert.doesNotMatch(readingPaperSource, /\$emit\('select-word',\s*token\.wordKey\)/)
   })
 
+  it('connects missing prototype translations to the existing AI translation endpoint', () => {
+    assert.match(readerPrototypeSource, /import\s*\{\s*requestTranslation\s*\}\s*from\s*['"]\.\.\/api\/translate\.js['"]/)
+    assert.match(
+      readerPrototypeSource,
+      /import\s*\{\s*getCachedTranslation,\s*saveCachedTranslation\s*\}\s*from\s*['"]\.\.\/utils\/translationCache\.js['"]/,
+    )
+    assert.match(readerPrototypeSource, /getPrototypeLocalParagraphTranslation/)
+    assert.match(readerPrototypeSource, /getPrototypeParagraphSourceText/)
+    assert.match(readerPrototypeSource, /const displayParagraphs = computed/)
+    assert.match(readerPrototypeSource, /translationByParagraphId/)
+    assert.match(readerPrototypeSource, /translationLoadingByParagraphId/)
+    assert.match(readerPrototypeSource, /translationErrorByParagraphId/)
+    assert.match(readerPrototypeSource, /loadMissingPrototypeTranslations/)
+    assert.match(readerPrototypeSource, /requestTranslation\(sourceText\)/)
+    assert.match(readerPrototypeSource, /saveCachedTranslation\(sourceText,\s*data\.translation\)/)
+    assert.match(readerPrototypeSource, /watch\(/)
+    assert.match(readerPrototypeSource, /:paragraphs="displayParagraphs"/)
+    assert.match(readerPrototypeSource, /@retry-translation="retryPrototypeTranslation"/)
+
+    assert.match(readingPaperSource, /paragraph\.isTranslationLoading/)
+    assert.match(readingPaperSource, /paragraph\.translationErrorMessage/)
+    assert.match(readingPaperSource, /\$emit\('retry-translation',\s*paragraph\.id\)/)
+    assert.match(readingPaperSource, /translation-retry-button/)
+    assert.match(readingPaperSource, /translation-fallback/)
+  })
+
+  it('connects missing prototype dictionary entries to the prototype word lookup endpoint and vocabulary store', () => {
+    assert.match(
+      readerPrototypeSource,
+      /import\s*\{\s*requestPrototypeWordExplanation\s*\}\s*from\s*['"]\.\.\/api\/prototypeWord\.js['"]/,
+    )
+    assert.match(
+      readerPrototypeSource,
+      /import\s*\{[\s\S]*isWordSaved[\s\S]*removeVocabularyWord[\s\S]*saveVocabularyWord[\s\S]*\}\s*from\s*['"]\.\.\/utils\/vocabulary\.js['"]/,
+    )
+    assert.match(readerPrototypeSource, /mapAiWordDetailToWordPanel/)
+    assert.match(readerPrototypeSource, /selectedAiWordEntry/)
+    assert.match(readerPrototypeSource, /wordCache/)
+    assert.match(readerPrototypeSource, /wordRequests/)
+    assert.match(readerPrototypeSource, /getAiWordDetail/)
+    assert.match(readerPrototypeSource, /requestPrototypeWordExplanation\(word\)/)
+    assert.match(readerPrototypeSource, /prototypeDictionary\[selectedWordKey\.value\]/)
+    assert.match(readerPrototypeSource, /mapAiWordDetailToWordPanel\(\s*selectedAiWordEntry\.value,\s*selectedWordContext\.value\s*\)/)
+    assert.match(readerPrototypeSource, /saveVocabularyWord\(/)
+    assert.match(readerPrototypeSource, /removeVocabularyWord\(/)
+    assert.match(readerPrototypeSource, /isWordSaved\(/)
+    assert.match(readerPrototypeSource, /:is-word-loading="isWordLoading"/)
+    assert.match(readerPrototypeSource, /:word-error-message="wordErrorMessage"/)
+    assert.match(readerPrototypeSource, /@retry-word="retrySelectedPrototypeWord"/)
+
+    assert.match(wordPanelSource, /isWordLoading/)
+    assert.match(wordPanelSource, /wordErrorMessage/)
+    assert.match(wordPanelSource, /loadingWord/)
+    assert.match(wordPanelSource, /translation-loading/)
+    assert.match(wordPanelSource, /translation-error/)
+    assert.match(wordPanelSource, /\$emit\('retry-word'\)/)
+    assert.match(wordPanelSource, /defineEmits\(\[[\s\S]*'retry-word'[\s\S]*\]\)/)
+  })
+
   it('replaces the active paragraph with the paragraph that contains the selected word', () => {
     assert.match(readerPrototypeSource, /const selectedParagraphId = computed/)
     assert.match(readerPrototypeSource, /selectedWordContext\.value\?\.paragraphId\s*\|\|\s*null/)
@@ -198,14 +258,14 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(wordPanelSource, /item\.meaning/)
     assert.match(wordPanelSource, /item\.count/)
     assert.match(wordPanelSource, /item\.isAdded/)
-    assert.match(wordPanelSource, /defineEmits\(\['add-word',\s*'remove-word',\s*'select-word',\s*'show-wordbook'\]\)/)
+    assert.match(wordPanelSource, /defineEmits\(\[[\s\S]*'add-word'[\s\S]*'remove-word'[\s\S]*'select-word'[\s\S]*'retry-word'[\s\S]*'show-wordbook'[\s\S]*\]\)/)
     assert.match(prototypeStyleSource, /\.chapter-vocabulary-list/)
     assert.match(prototypeStyleSource, /\.chapter-vocabulary-item/)
 
     assert.doesNotMatch(wordPanelSource, /planned、unusually、observatory、reveal、copied、sentence/)
   })
 
-  it('shows and manages the local mock wordbook without persistence', () => {
+  it('shows the local wordbook state while saving words through the existing vocabulary store', () => {
     assert.match(readerPrototypeSource, /const mockWordbook = computed/)
     assert.match(
       readerPrototypeSource,
@@ -216,6 +276,8 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(readerPrototypeSource, /@show-wordbook="clearSelectedWord"/)
     assert.match(readerPrototypeSource, /function removeFromMockWordbook/)
     assert.match(readerPrototypeSource, /function clearSelectedWord/)
+    assert.match(readerPrototypeSource, /saveVocabularyWord\(/)
+    assert.match(readerPrototypeSource, /removeVocabularyWord\(/)
     assert.doesNotMatch(readerPrototypeSource, /localStorage/)
 
     assert.match(wordPanelSource, /wordbook/)
@@ -227,7 +289,7 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(wordPanelSource, /\$emit\('remove-word',\s*item\.wordKey\)/)
     assert.match(wordPanelSource, /查看本地生词本/)
     assert.match(wordPanelSource, /移出生词本/)
-    assert.match(wordPanelSource, /defineEmits\(\['add-word',\s*'remove-word',\s*'select-word',\s*'show-wordbook'\]\)/)
+    assert.match(wordPanelSource, /defineEmits\(\[[\s\S]*'add-word'[\s\S]*'remove-word'[\s\S]*'select-word'[\s\S]*'retry-word'[\s\S]*'show-wordbook'[\s\S]*\]\)/)
     assert.match(prototypeStyleSource, /\.local-wordbook-list/)
     assert.match(prototypeStyleSource, /\.local-wordbook-remove/)
   })
@@ -304,7 +366,7 @@ describe('reader prototype word definition panel contract', () => {
     assert.doesNotMatch(readerPrototypeSource, /goToPreviousParagraph/)
     assert.doesNotMatch(readerPrototypeSource, /goToNextParagraph/)
     assert.doesNotMatch(readerPrototypeSource, /activeParagraphId/)
-    assert.doesNotMatch(readerPrototypeSource, /displayParagraphs/)
+    assert.doesNotMatch(readerPrototypeSource, /displayParagraphs\s*=\s*computed\(\(\)\s*=>\s*activeParagraph/)
     assert.doesNotMatch(readerPrototypeSource, /activeParagraphIndex/)
     assert.doesNotMatch(readerPrototypeSource, /canGoPreviousParagraph/)
     assert.doesNotMatch(readerPrototypeSource, /canGoNextParagraph/)
@@ -476,18 +538,26 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(readerPrototypeSource, /appendImportedPrototypeBook/)
     assert.match(readerPrototypeSource, /removeImportedPrototypeBook/)
     assert.match(readerPrototypeSource, /getImportedPrototypeChapterContentById/)
-    assert.match(readerPrototypeSource, /const importedBooks = ref\(loadImportedPrototypeBooks\(\)\)/)
+    assert.match(readerPrototypeSource, /const importedBooks = ref\(\[\]\)/)
+    assert.match(readerPrototypeSource, /loadImportedBooksIntoShelf\(\)/)
+    assert.match(readerPrototypeSource, /async function loadImportedBooksIntoShelf/)
+    assert.match(readerPrototypeSource, /await loadImportedPrototypeBooks\(\)/)
     assert.match(readerPrototypeSource, /const books = computed\(\(\) => \[\.\.\.importedBooks\.value,\s*\.\.\.prototypeBooks\]\)/)
     assert.match(readerPrototypeSource, /:books="books"/)
     assert.match(readerPrototypeSource, /@select-book="selectBook"/)
     assert.match(readerPrototypeSource, /@import-book="openBookImport"/)
     assert.match(readerPrototypeSource, /@delete-book="deleteImportedBook"/)
-    assert.match(readerPrototypeSource, /function deleteImportedBook/)
+    assert.match(readerPrototypeSource, /async function deleteImportedBook/)
+    assert.match(readerPrototypeSource, /await removeImportedPrototypeBook\(bookId\)/)
     assert.match(readerPrototypeSource, /<PrototypeBookImportPanel/)
     assert.match(readerPrototypeSource, /v-if="isBookImportOpen"/)
     assert.match(readerPrototypeSource, /@select-file="selectImportFile"/)
     assert.match(readerPrototypeSource, /@submit="importSelectedBookFile"/)
     assert.match(readerPrototypeSource, /@cancel="closeBookImport"/)
+    assert.match(readerPrototypeSource, /await appendImportedPrototypeBook\(importedBook\)/)
+    assert.match(readerPrototypeSource, /activateImportedBook\(importedBook,\s*result\.books\)/)
+    assert.match(readerPrototypeSource, /activateTemporaryImportedBook\(importedBook,\s*result\.books\)/)
+    assert.match(readerPrototypeSource, /已临时导入，但无法保存到本地书架/)
     assert.match(readerPrototypeSource, /activeBookId\.value\s*=\s*importedBook\.id/)
     assert.match(readerPrototypeSource, /activeChapterId\.value\s*=\s*importedBook\.chapters\[0\]\?\.id/)
     assert.doesNotMatch(readerPrototypeSource, /难度/)

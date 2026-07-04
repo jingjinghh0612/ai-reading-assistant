@@ -18,7 +18,17 @@
         </div>
 
         <p class="word-meaning">{{ word.meaning }}</p>
-        <p class="word-explanation">{{ word.explanation }}</p>
+        <p v-if="word.explanation" class="word-explanation">{{ word.explanation }}</p>
+
+        <p v-if="isWordLoading" class="translation-loading">
+          正在查询 AI 词典<span v-if="loadingWord">：{{ loadingWord }}</span>
+        </p>
+        <div v-else-if="wordErrorMessage" class="translation-error">
+          <p>{{ wordErrorMessage }}</p>
+          <button class="translation-retry-button" type="button" @click="$emit('retry-word')">
+            重试
+          </button>
+        </div>
 
         <dl class="word-detail-list">
           <div>
@@ -149,11 +159,23 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  isWordLoading: {
+    type: Boolean,
+    default: false,
+  },
+  loadingWord: {
+    type: String,
+    default: '',
+  },
+  wordErrorMessage: {
+    type: String,
+    default: '',
+  },
   message: {
     type: String,
     default: '',
   },
 })
 
-defineEmits(['add-word', 'remove-word', 'select-word', 'show-wordbook'])
+defineEmits(['add-word', 'remove-word', 'select-word', 'retry-word', 'show-wordbook'])
 </script>
