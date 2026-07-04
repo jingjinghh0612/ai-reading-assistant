@@ -190,6 +190,7 @@ const loadingWord = ref('')
 const wordErrorMessage = ref('')
 const importedBooks = ref([])
 const pastedChapterContent = ref(null)
+const pastedArticleVersion = ref(0)
 const isPastedArticleActive = ref(false)
 const isPasteEditorOpen = ref(false)
 const pasteDraft = ref('')
@@ -210,8 +211,11 @@ const translationBySentenceId = ref({})
 const translationLoadingBySentenceId = ref({})
 const translationErrorBySentenceId = ref({})
 const translationRequests = Object.create(null)
+const paragraphRequestVersions = Object.create(null)
+const sentenceRequestVersions = Object.create(null)
 const wordCache = Object.create(null)
 const wordRequests = Object.create(null)
+let translationRequestVersion = 0
 let currentWordRequestId = 0
 
 const books = computed(() => [...importedBooks.value, ...prototypeBooks])
@@ -350,7 +354,34 @@ function getErrorMessage(error, fallbackMessage) {
   return error instanceof Error && error.message ? error.message : fallbackMessage
 }
 
+function clearRequestVersions(requestVersions) {
+  for (const key of Object.keys(requestVersions)) {
+    delete requestVersions[key]
+  }
+}
+
+function clearPrototypeSentenceSelection() {
+  selectedSentenceId.value = ''
+  selectedSentenceParagraphId.value = ''
+}
+
+function clearPrototypeTranslationState() {
+  translationRequestVersion += 1
+  translationByParagraphId.value = {}
+  translationLoadingByParagraphId.value = {}
+  translationErrorByParagraphId.value = {}
+  translationBySentenceId.value = {}
+  translationLoadingBySentenceId.value = {}
+  translationErrorBySentenceId.value = {}
+  clearRequestVersions(paragraphRequestVersions)
+  clearRequestVersions(sentenceRequestVersions)
+}
+
 function getPrototypeChapterStateId() {
+  if (isPastedArticleActive.value && currentChapterContent.value?.id === pastedChapterContent.value?.id) {
+    return `${currentChapterContent.value.id}:${pastedArticleVersion.value}`
+  }
+
   return currentChapter.value?.id || currentChapterContent.value?.id || 'chapter'
 }
 
@@ -424,11 +455,17 @@ async function loadPrototypeParagraphTranslation(paragraph, options = {}) {
     return
   }
 
+  const requestVersion = translationRequestVersion += 1
+  paragraphRequestVersions[paragraphStateKey] = requestVersion
   setRecordValue(translationErrorByParagraphId, paragraphStateKey, '')
   setRecordValue(translationLoadingByParagraphId, paragraphStateKey, true)
 
   try {
     const translation = await getPrototypeTranslation(sourceText, options)
+
+    if (paragraphRequestVersions[paragraphStateKey] !== requestVersion) {
+      return
+    }
 
     if (!translation) {
       throw new Error('没有返回可用译文。')
@@ -436,9 +473,16 @@ async function loadPrototypeParagraphTranslation(paragraph, options = {}) {
 
     setRecordValue(translationByParagraphId, paragraphStateKey, translation)
   } catch (error) {
+    if (paragraphRequestVersions[paragraphStateKey] !== requestVersion) {
+      return
+    }
+
     setRecordValue(translationErrorByParagraphId, paragraphStateKey, getErrorMessage(error, 'AI 翻译加载失败。'))
   } finally {
-    setRecordValue(translationLoadingByParagraphId, paragraphStateKey, false)
+    if (paragraphRequestVersions[paragraphStateKey] === requestVersion) {
+      setRecordValue(translationLoadingByParagraphId, paragraphStateKey, false)
+      delete paragraphRequestVersions[paragraphStateKey]
+    }
   }
 }
 
@@ -467,11 +511,17 @@ async function loadPrototypeSentenceTranslation(sentence, paragraph, options = {
     return
   }
 
+  const requestVersion = translationRequestVersion += 1
+  sentenceRequestVersions[sentenceStateKey] = requestVersion
   setRecordValue(translationErrorBySentenceId, sentenceStateKey, '')
   setRecordValue(translationLoadingBySentenceId, sentenceStateKey, true)
 
   try {
     const translation = await getPrototypeTranslation(sourceText, options)
+
+    if (sentenceRequestVersions[sentenceStateKey] !== requestVersion) {
+      return
+    }
 
     if (!translation) {
       throw new Error('没有返回可用译文。')
@@ -479,9 +529,16 @@ async function loadPrototypeSentenceTranslation(sentence, paragraph, options = {
 
     setRecordValue(translationBySentenceId, sentenceStateKey, translation)
   } catch (error) {
+    if (sentenceRequestVersions[sentenceStateKey] !== requestVersion) {
+      return
+    }
+
     setRecordValue(translationErrorBySentenceId, sentenceStateKey, getErrorMessage(error, 'AI 翻译加载失败。'))
   } finally {
-    setRecordValue(translationLoadingBySentenceId, sentenceStateKey, false)
+    if (sentenceRequestVersions[sentenceStateKey] === requestVersion) {
+      setRecordValue(translationLoadingBySentenceId, sentenceStateKey, false)
+      delete sentenceRequestVersions[sentenceStateKey]
+    }
   }
 }
 
@@ -990,12 +1047,15 @@ function submitPastedArticle() {
 
   pastedChapterContent.value = pastedChapter
   isPastedArticleActive.value = true
+  pastedArticleVersion.value += 1
   isPasteEditorOpen.value = false
   pasteDraft.value = ''
   sentenceHighlightsByChapter.value = {
     ...sentenceHighlightsByChapter.value,
     [pastedChapter.id]: {},
   }
+  clearPrototypeSentenceSelection()
+  clearPrototypeTranslationState()
   clearSelectedWord()
   pasteArticleMessage.value = '已载入粘贴文章'
   pasteArticleMessageType.value = 'success'
@@ -1032,7 +1092,6 @@ function getBookImportMessage(reason) {
 loadImportedBooksIntoShelf()
 
 watch(currentChapterContent, () => {
-  selectedSentenceId.value = ''
-  selectedSentenceParagraphId.value = ''
+  clearPrototypeSentenceSelection()
 })
 </script>

@@ -213,6 +213,31 @@ describe('reader prototype word definition panel contract', () => {
     assert.doesNotMatch(readerPrototypeSource, /watch\(\[showTranslation,\s*currentChapterContent\]/)
   })
 
+  it('isolates pasted article translations and ignores stale translation responses', () => {
+    assert.match(readerPrototypeSource, /pastedArticleVersion/)
+    assert.match(readerPrototypeSource, /pastedArticleVersion\.value\s*\+=\s*1/)
+    assert.match(
+      readerPrototypeSource,
+      /isPastedArticleActive\.value[\s\S]*pastedArticleVersion\.value/,
+    )
+    assert.match(readerPrototypeSource, /function clearPrototypeTranslationState/)
+    assert.match(readerPrototypeSource, /translationByParagraphId\.value\s*=\s*\{\}/)
+    assert.match(readerPrototypeSource, /translationLoadingByParagraphId\.value\s*=\s*\{\}/)
+    assert.match(readerPrototypeSource, /translationErrorByParagraphId\.value\s*=\s*\{\}/)
+    assert.match(readerPrototypeSource, /translationBySentenceId\.value\s*=\s*\{\}/)
+    assert.match(readerPrototypeSource, /translationLoadingBySentenceId\.value\s*=\s*\{\}/)
+    assert.match(readerPrototypeSource, /translationErrorBySentenceId\.value\s*=\s*\{\}/)
+    assert.match(readerPrototypeSource, /let translationRequestVersion\s*=\s*0/)
+    assert.match(readerPrototypeSource, /translationRequestVersion\s*\+=\s*1/)
+    assert.match(readerPrototypeSource, /paragraphRequestVersions/)
+    assert.match(readerPrototypeSource, /sentenceRequestVersions/)
+    assert.match(readerPrototypeSource, /paragraphRequestVersions\[paragraphStateKey\]\s*=\s*requestVersion/)
+    assert.match(readerPrototypeSource, /sentenceRequestVersions\[sentenceStateKey\]\s*=\s*requestVersion/)
+    assert.match(readerPrototypeSource, /paragraphRequestVersions\[paragraphStateKey\]\s*!==\s*requestVersion/)
+    assert.match(readerPrototypeSource, /sentenceRequestVersions\[sentenceStateKey\]\s*!==\s*requestVersion/)
+    assert.match(readerPrototypeSource, /return/)
+  })
+
   it('connects missing prototype dictionary entries to the prototype word lookup endpoint and vocabulary store', () => {
     assert.match(
       readerPrototypeSource,
