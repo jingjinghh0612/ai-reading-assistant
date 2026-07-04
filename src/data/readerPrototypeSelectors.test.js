@@ -37,6 +37,13 @@ describe('reader prototype selectors', () => {
     assert.deepEqual(getPrototypeChapters(null), [])
   })
 
+  it('keeps the default prototype shelf focused on books with local chapter content', () => {
+    assert.deepEqual(
+      prototypeBooks.map((book) => book.id),
+      ['quiet-observatory'],
+    )
+  })
+
   it('selects chapter content with an explicit fallback chapter id', () => {
     const fallbackChapterId = 'chapter-4'
 

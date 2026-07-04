@@ -45,24 +45,6 @@ export const prototypeBooks = [
       },
     ],
   },
-  {
-    id: 'journey-city',
-    title: 'Journey to the City',
-    meta: '短篇故事 · A2',
-    initials: 'JC',
-    tone: 'green',
-    progress: 32,
-    chapters: [],
-  },
-  {
-    id: 'science-stories',
-    title: 'Stories of Science',
-    meta: '科普阅读 · B2',
-    initials: 'SS',
-    tone: 'amber',
-    progress: 18,
-    chapters: [],
-  },
 ]
 
 export const prototypeChapterContent = {
