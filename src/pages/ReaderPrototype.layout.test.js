@@ -191,7 +191,7 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(readingPaperSource, /paragraph\.translationErrorMessage/)
     assert.match(readingPaperSource, /\$emit\('retry-translation',\s*paragraph\.id\)/)
     assert.match(readingPaperSource, /translation-retry-button/)
-    assert.match(readingPaperSource, /translation-fallback/)
+    assert.match(readingPaperSource, /translate-paragraph-button/)
   })
 
   it('connects missing prototype dictionary entries to the prototype word lookup endpoint and vocabulary store', () => {
@@ -630,9 +630,28 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(readingPaperSource, /getSentenceHighlightClass/)
     assert.match(readingPaperSource, /toggleSentenceHighlight/)
     assert.match(readingPaperSource, /toggle-sentence-highlight/)
-    assert.match(readingPaperSource, /@click="toggleSentenceHighlight\(sentence\.id\)"/)
-    assert.match(readingPaperSource, /@keydown\.enter="toggleSentenceHighlight\(sentence\.id\)"/)
+    assert.match(readingPaperSource, /@click="handleSentenceClick\(sentence,\s*paragraph\)"/)
+    assert.match(readingPaperSource, /toggleSentenceHighlight\(sentence\.id\)/)
+    assert.match(readingPaperSource, /@keydown\.enter="handleSentenceClick\(sentence,\s*paragraph\)"/)
     assert.match(readingPaperSource, /@click\.stop="\$emit\('select-word'/)
+  })
+
+  it('renders inline sentence translation and manual paragraph translation controls', () => {
+    assert.match(readingPaperSource, /selectedSentenceId/)
+    assert.match(readingPaperSource, /sentence\.translation/)
+    assert.match(readingPaperSource, /sentence\.isTranslationLoading/)
+    assert.match(readingPaperSource, /sentence\.translationErrorMessage/)
+    assert.match(readingPaperSource, /emit\('select-sentence',\s*\{[\s\S]*sentence[\s\S]*paragraph[\s\S]*\}\)/)
+    assert.match(readingPaperSource, /\$emit\('retry-sentence-translation',\s*\{[\s\S]*sentenceId:\s*sentence\.id[\s\S]*paragraphId:\s*paragraph\.id[\s\S]*\}\)/)
+    assert.match(readingPaperSource, /\$emit\('translate-paragraph',\s*paragraph\.id\)/)
+    assert.match(readingPaperSource, /translate-paragraph-button/)
+    assert.match(readingPaperSource, /sentence-translation-text/)
+    assert.match(readingPaperSource, /handleSentenceClick\(sentence,\s*paragraph\)/)
+    assert.match(readingPaperSource, /@click="handleSentenceClick\(sentence,\s*paragraph\)"/)
+    assert.match(readingPaperSource, /@click\.stop="\$emit\('select-word'/)
+
+    assert.match(prototypeStyleSource, /\.sentence-translation-text/)
+    assert.match(prototypeStyleSource, /\.translate-paragraph-button/)
   })
 
   it('styles prototype highlighter controls and color variants', () => {

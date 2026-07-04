@@ -24,9 +24,9 @@
               :class="getSentenceHighlightClass(sentence)"
               :role="isHighlightMode ? 'button' : null"
               :tabindex="isHighlightMode ? 0 : null"
-              @click="toggleSentenceHighlight(sentence.id)"
-              @keydown.enter="toggleSentenceHighlight(sentence.id)"
-              @keydown.space.prevent="toggleSentenceHighlight(sentence.id)"
+              @click="handleSentenceClick(sentence, paragraph)"
+              @keydown.enter="handleSentenceClick(sentence, paragraph)"
+              @keydown.space.prevent="handleSentenceClick(sentence, paragraph)"
             >
               <template
                 v-for="token in getClickableSentenceTokens(sentence)"
@@ -48,6 +48,26 @@
                 <span v-else>{{ token.text }}</span>
               </template>
             </span>
+            <span
+              v-if="selectedSentenceId === sentence.id"
+              class="sentence-translation-text"
+            >
+              <span v-if="sentence.translation">{{ sentence.translation }}</span>
+              <span v-else-if="sentence.isTranslationLoading" class="translation-loading">正在翻译...</span>
+              <span v-else-if="sentence.translationErrorMessage" class="translation-error">
+                {{ sentence.translationErrorMessage }}
+                <button
+                  class="translation-retry-button"
+                  type="button"
+                  @click.stop="$emit('retry-sentence-translation', {
+                    sentenceId: sentence.id,
+                    paragraphId: paragraph.id,
+                  })"
+                >
+                  重试
+                </button>
+              </span>
+            </span>
           </template>
         </p>
         <div v-if="showTranslation" class="translation-text">
@@ -63,7 +83,14 @@
               重试
             </button>
           </span>
-          <span v-else class="translation-fallback">暂无译文</span>
+          <button
+            v-else
+            class="translate-paragraph-button"
+            type="button"
+            @click="$emit('translate-paragraph', paragraph.id)"
+          >
+            翻译本段
+          </button>
         </div>
       </section>
     </article>
@@ -110,9 +137,20 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  selectedSentenceId: {
+    type: String,
+    default: '',
+  },
 })
 
-const emit = defineEmits(['select-word', 'retry-translation', 'toggle-sentence-highlight'])
+const emit = defineEmits([
+  'select-word',
+  'select-sentence',
+  'retry-sentence-translation',
+  'translate-paragraph',
+  'retry-translation',
+  'toggle-sentence-highlight',
+])
 
 function getSentenceHighlightColor(sentence) {
   return props.sentenceHighlights[sentence.id] || ''
@@ -126,6 +164,18 @@ function getSentenceHighlightClass(sentence) {
     [`sentence-highlight-${colorId}`]: props.showHighlight && Boolean(colorId),
     'is-highlight-mode': props.isHighlightMode,
   }
+}
+
+function handleSentenceClick(sentence, paragraph) {
+  if (props.isHighlightMode) {
+    toggleSentenceHighlight(sentence.id)
+    return
+  }
+
+  emit('select-sentence', {
+    sentence,
+    paragraph,
+  })
 }
 
 function toggleSentenceHighlight(sentenceId) {
