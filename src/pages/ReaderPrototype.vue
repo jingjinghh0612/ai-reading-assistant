@@ -64,9 +64,13 @@
           :is-highlight-mode="isHighlightMode"
           :active-highlight-color-id="activeHighlightColorId"
           :selected-word-key="selectedWordKey"
+          :selected-sentence-id="selectedSentenceId"
           :selected-paragraph-id="selectedParagraphId"
           @select-word="selectWord"
+          @select-sentence="selectPrototypeSentence"
           @retry-translation="retryPrototypeTranslation"
+          @retry-sentence-translation="retryPrototypeSentenceTranslation"
+          @translate-paragraph="translatePrototypeParagraph"
           @toggle-sentence-highlight="toggleSentenceHighlight"
         />
         <section
@@ -119,12 +123,15 @@ import {
   getPrototypeChapterHighlights,
   getPrototypeChapterVocabulary,
   getPrototypeLocalParagraphTranslation,
+  getPrototypeLocalSentenceTranslation,
   getPrototypeMockWordbook,
   getPrototypeWordContext,
   getPrototypeChapters,
   getPrototypeParagraphs,
   getPrototypeParagraphSourceText,
   getPrototypeReadingProgress,
+  getPrototypeSentenceSourceText,
+  getPrototypeTranslationStateKey,
   mapAiWordDetailToWordPanel,
   mapDictionaryEntryToWordPanel,
   removePrototypeSentenceHighlight,
@@ -197,6 +204,11 @@ const isImportingBook = ref(false)
 const translationByParagraphId = ref({})
 const translationLoadingByParagraphId = ref({})
 const translationErrorByParagraphId = ref({})
+const selectedSentenceId = ref('')
+const selectedSentenceParagraphId = ref('')
+const translationBySentenceId = ref({})
+const translationLoadingBySentenceId = ref({})
+const translationErrorBySentenceId = ref({})
 const translationRequests = Object.create(null)
 const wordCache = Object.create(null)
 const wordRequests = Object.create(null)
@@ -271,6 +283,17 @@ const displayParagraphs = computed(() =>
       translation: localTranslation || translationByParagraphId.value[paragraphStateKey] || '',
       isTranslationLoading: Boolean(translationLoadingByParagraphId.value[paragraphStateKey]),
       translationErrorMessage: translationErrorByParagraphId.value[paragraphStateKey] || '',
+      sentences: (paragraph.sentences || []).map((sentence) => {
+        const sentenceStateKey = getPrototypeSentenceStateKey(sentence, paragraph)
+        const localSentenceTranslation = getPrototypeLocalSentenceTranslation(sentence)
+
+        return {
+          ...sentence,
+          translation: localSentenceTranslation || translationBySentenceId.value[sentenceStateKey] || '',
+          isTranslationLoading: Boolean(translationLoadingBySentenceId.value[sentenceStateKey]),
+          translationErrorMessage: translationErrorBySentenceId.value[sentenceStateKey] || '',
+        }
+      }),
     }
   }),
 )
@@ -327,8 +350,20 @@ function getErrorMessage(error, fallbackMessage) {
   return error instanceof Error && error.message ? error.message : fallbackMessage
 }
 
+function getPrototypeChapterStateId() {
+  return currentChapter.value?.id || currentChapterContent.value?.id || 'chapter'
+}
+
 function getPrototypeParagraphStateKey(paragraph) {
-  return `${currentChapter.value?.id || currentChapterContent.value?.id || 'chapter'}:${paragraph?.id || ''}`
+  return getPrototypeTranslationStateKey(getPrototypeChapterStateId(), paragraph?.id || '', 'paragraph')
+}
+
+function getPrototypeSentenceStateKey(sentence, paragraph) {
+  return getPrototypeTranslationStateKey(
+    getPrototypeChapterStateId(),
+    paragraph?.id || selectedSentenceParagraphId.value || '',
+    sentence?.id || selectedSentenceId.value || '',
+  )
 }
 
 function setRecordValue(recordRef, key, value) {
@@ -407,26 +442,6 @@ async function loadPrototypeParagraphTranslation(paragraph, options = {}) {
   }
 }
 
-function loadMissingPrototypeTranslations() {
-  if (!showTranslation.value) {
-    return
-  }
-
-  for (const paragraph of paragraphs.value) {
-    const paragraphStateKey = getPrototypeParagraphStateKey(paragraph)
-
-    if (
-      getPrototypeLocalParagraphTranslation(paragraph) ||
-      translationByParagraphId.value[paragraphStateKey] ||
-      translationLoadingByParagraphId.value[paragraphStateKey]
-    ) {
-      continue
-    }
-
-    loadPrototypeParagraphTranslation(paragraph)
-  }
-}
-
 function retryPrototypeTranslation(paragraphId) {
   const paragraph = paragraphs.value.find((item) => item.id === paragraphId)
 
@@ -438,6 +453,72 @@ function retryPrototypeTranslation(paragraphId) {
   setRecordValue(translationByParagraphId, paragraphStateKey, '')
   setRecordValue(translationErrorByParagraphId, paragraphStateKey, '')
   loadPrototypeParagraphTranslation(paragraph, { refresh: true })
+}
+
+async function loadPrototypeSentenceTranslation(sentence, paragraph, options = {}) {
+  const sentenceStateKey = getPrototypeSentenceStateKey(sentence, paragraph)
+  const sourceText = getPrototypeSentenceSourceText(sentence)
+
+  if (!sentenceStateKey || !sourceText || getPrototypeLocalSentenceTranslation(sentence)) {
+    return
+  }
+
+  if (!options.refresh && translationBySentenceId.value[sentenceStateKey]) {
+    return
+  }
+
+  setRecordValue(translationErrorBySentenceId, sentenceStateKey, '')
+  setRecordValue(translationLoadingBySentenceId, sentenceStateKey, true)
+
+  try {
+    const translation = await getPrototypeTranslation(sourceText, options)
+
+    if (!translation) {
+      throw new Error('没有返回可用译文。')
+    }
+
+    setRecordValue(translationBySentenceId, sentenceStateKey, translation)
+  } catch (error) {
+    setRecordValue(translationErrorBySentenceId, sentenceStateKey, getErrorMessage(error, 'AI 翻译加载失败。'))
+  } finally {
+    setRecordValue(translationLoadingBySentenceId, sentenceStateKey, false)
+  }
+}
+
+function selectPrototypeSentence({ sentence, paragraph }) {
+  if (!sentence?.id || !paragraph?.id) {
+    return
+  }
+
+  selectedSentenceId.value = sentence.id
+  selectedSentenceParagraphId.value = paragraph.id
+  loadPrototypeSentenceTranslation(sentence, paragraph)
+}
+
+function retryPrototypeSentenceTranslation({ sentenceId, paragraphId }) {
+  const paragraph = paragraphs.value.find((item) => item.id === paragraphId)
+  const sentence = paragraph?.sentences?.find((item) => item.id === sentenceId)
+
+  if (!paragraph || !sentence) {
+    return
+  }
+
+  selectedSentenceId.value = sentence.id
+  selectedSentenceParagraphId.value = paragraph.id
+  const sentenceStateKey = getPrototypeSentenceStateKey(sentence, paragraph)
+  setRecordValue(translationBySentenceId, sentenceStateKey, '')
+  setRecordValue(translationErrorBySentenceId, sentenceStateKey, '')
+  loadPrototypeSentenceTranslation(sentence, paragraph, { refresh: true })
+}
+
+function translatePrototypeParagraph(paragraphId) {
+  const paragraph = paragraphs.value.find((item) => item.id === paragraphId)
+
+  if (!paragraph) {
+    return
+  }
+
+  loadPrototypeParagraphTranslation(paragraph)
 }
 
 function getAiWordDetail(word) {
@@ -950,7 +1031,8 @@ function getBookImportMessage(reason) {
 
 loadImportedBooksIntoShelf()
 
-watch([showTranslation, currentChapterContent], () => {
-  loadMissingPrototypeTranslations()
-}, { immediate: true })
+watch(currentChapterContent, () => {
+  selectedSentenceId.value = ''
+  selectedSentenceParagraphId.value = ''
+})
 </script>
