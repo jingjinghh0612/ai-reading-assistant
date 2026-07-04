@@ -25,6 +25,7 @@
               :role="isHighlightMode ? 'button' : null"
               :tabindex="isHighlightMode ? 0 : null"
               @click="handleSentenceClick(sentence, paragraph)"
+              @dblclick="handleSentenceDoubleClick(sentence, paragraph)"
               @keydown.enter="handleSentenceClick(sentence, paragraph)"
               @keydown.space.prevent="handleSentenceClick(sentence, paragraph)"
             >
@@ -42,6 +43,7 @@
                     surface: token.surface || token.text,
                     sentenceId: token.sentenceId,
                   })"
+                  @dblclick.stop="handleWordDoubleClick(sentence, paragraph)"
                 >
                   {{ token.text }}
                 </button>
@@ -172,6 +174,26 @@ function handleSentenceClick(sentence, paragraph) {
     return
   }
 
+  selectSentence(sentence, paragraph)
+}
+
+function handleSentenceDoubleClick(sentence, paragraph) {
+  if (props.isHighlightMode) {
+    return
+  }
+
+  selectSentence(sentence, paragraph)
+}
+
+function handleWordDoubleClick(sentence, paragraph) {
+  if (props.isHighlightMode) {
+    return
+  }
+
+  selectSentence(sentence, paragraph)
+}
+
+function selectSentence(sentence, paragraph) {
   emit('select-sentence', {
     sentence,
     paragraph,

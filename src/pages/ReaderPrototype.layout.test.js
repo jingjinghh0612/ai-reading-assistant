@@ -698,6 +698,16 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(prototypeStyleSource, /\.translate-paragraph-button/)
   })
 
+  it('lets double click show sentence translation without breaking word clicks', () => {
+    assert.match(readingPaperSource, /@dblclick="handleSentenceDoubleClick\(sentence,\s*paragraph\)"/)
+    assert.match(readingPaperSource, /@dblclick\.stop="handleWordDoubleClick\(sentence,\s*paragraph\)"/)
+    assert.match(readingPaperSource, /function handleSentenceDoubleClick\(sentence,\s*paragraph\)/)
+    assert.match(readingPaperSource, /function handleWordDoubleClick\(sentence,\s*paragraph\)/)
+    assert.match(readingPaperSource, /function selectSentence\(sentence,\s*paragraph\)/)
+    assert.match(readingPaperSource, /emit\('select-sentence',\s*\{[\s\S]*sentence[\s\S]*paragraph[\s\S]*\}\)/)
+    assert.match(readingPaperSource, /@click\.stop="\$emit\('select-word'/)
+  })
+
   it('styles prototype highlighter controls and color variants', () => {
     assert.match(prototypeStyleSource, /\.highlight-color-swatches/)
     assert.match(prototypeStyleSource, /\.highlight-color-button/)
