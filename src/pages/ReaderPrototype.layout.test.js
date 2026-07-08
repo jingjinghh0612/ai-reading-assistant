@@ -172,7 +172,7 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(readerPrototypeSource, /import\s*\{\s*requestTranslation\s*\}\s*from\s*['"]\.\.\/api\/translate\.js['"]/)
     assert.match(
       readerPrototypeSource,
-      /import\s*\{\s*getCachedTranslation,\s*saveCachedTranslation\s*\}\s*from\s*['"]\.\.\/utils\/translationCache\.js['"]/,
+      /import\s*\{\s*createTranslationCacheKey,\s*getCachedTranslation,\s*saveCachedTranslation\s*\}\s*from\s*['"]\.\.\/utils\/translationCache\.js['"]/,
     )
     assert.match(readerPrototypeSource, /getPrototypeLocalParagraphTranslation/)
     assert.match(readerPrototypeSource, /getPrototypeParagraphSourceText/)
@@ -181,7 +181,7 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(readerPrototypeSource, /translationLoadingByParagraphId/)
     assert.match(readerPrototypeSource, /translationErrorByParagraphId/)
     assert.match(readerPrototypeSource, /requestTranslation\(sourceText\)/)
-    assert.match(readerPrototypeSource, /saveCachedTranslation\(sourceText,\s*data\.translation\)/)
+    assert.match(readerPrototypeSource, /saveCachedTranslation\(sourceText,\s*data\.translation,\s*translationType\)/)
     assert.match(readerPrototypeSource, /watch\(/)
     assert.match(readerPrototypeSource, /:paragraphs="displayParagraphs"/)
     assert.match(readerPrototypeSource, /@retry-translation="retryPrototypeTranslation"/)
@@ -191,6 +191,19 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(readingPaperSource, /\$emit\('retry-translation',\s*paragraph\.id\)/)
     assert.match(readingPaperSource, /translation-retry-button/)
     assert.match(readingPaperSource, /translate-paragraph-button/)
+  })
+
+  it('uses typed content cache for on-demand prototype translations', () => {
+    assert.match(readerPrototypeSource, /function getPrototypeTranslation\(sourceText,\s*translationType,\s*options\s*=\s*\{\}\)/)
+    assert.match(readerPrototypeSource, /const requestKey\s*=\s*createTranslationCacheKey\(sourceText,\s*translationType\)/)
+    assert.match(readerPrototypeSource, /getCachedTranslation\(sourceText,\s*translationType\)/)
+    assert.match(readerPrototypeSource, /saveCachedTranslation\(sourceText,\s*data\.translation,\s*translationType\)/)
+    assert.match(readerPrototypeSource, /getPrototypeTranslation\(sourceText,\s*'paragraph',\s*options\)/)
+    assert.match(readerPrototypeSource, /getPrototypeTranslation\(sourceText,\s*'sentence',\s*options\)/)
+    assert.match(readerPrototypeSource, /loadPrototypeSentenceTranslation\(sentence,\s*paragraph\)/)
+    assert.match(readerPrototypeSource, /loadPrototypeParagraphTranslation\(paragraph\)/)
+    assert.match(readerPrototypeSource, /loadPrototypeSentenceTranslation\(sentence,\s*paragraph,\s*\{\s*refresh:\s*true\s*\}\)/)
+    assert.match(readerPrototypeSource, /loadPrototypeParagraphTranslation\(paragraph,\s*\{\s*refresh:\s*true\s*\}\)/)
   })
 
   it('loads sentence translations on demand and keeps paragraph translation manual', () => {

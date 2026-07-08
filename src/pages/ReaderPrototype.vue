@@ -138,7 +138,7 @@ import {
   togglePrototypeSentenceHighlight,
 } from '../data/readerPrototypeSelectors.js'
 import { readClipboardText } from '../utils/clipboard.js'
-import { getCachedTranslation, saveCachedTranslation } from '../utils/translationCache.js'
+import { createTranslationCacheKey, getCachedTranslation, saveCachedTranslation } from '../utils/translationCache.js'
 import { isWordSaved, removeVocabularyWord, saveVocabularyWord } from '../utils/vocabulary.js'
 import { normalizeWord } from '../utils/word.js'
 import {
@@ -409,16 +409,16 @@ function setRecordValue(recordRef, key, value) {
   recordRef.value = nextRecord
 }
 
-function getPrototypeTranslation(sourceText, options = {}) {
+function getPrototypeTranslation(sourceText, translationType, options = {}) {
   const refresh = Boolean(options.refresh)
-  const cacheKey = sourceText.trim()
+  const requestKey = createTranslationCacheKey(sourceText, translationType)
 
-  if (!cacheKey) {
+  if (!sourceText.trim()) {
     return Promise.resolve('')
   }
 
   if (!refresh) {
-    const cachedTranslation = getCachedTranslation(sourceText)
+    const cachedTranslation = getCachedTranslation(sourceText, translationType)
 
     if (cachedTranslation) {
       return Promise.resolve(cachedTranslation)
@@ -426,21 +426,21 @@ function getPrototypeTranslation(sourceText, options = {}) {
   }
 
   if (refresh) {
-    delete translationRequests[cacheKey]
+    delete translationRequests[requestKey]
   }
 
-  if (!translationRequests[cacheKey]) {
-    translationRequests[cacheKey] = requestTranslation(sourceText)
+  if (!translationRequests[requestKey]) {
+    translationRequests[requestKey] = requestTranslation(sourceText)
       .then((data) => {
-        saveCachedTranslation(sourceText, data.translation)
+        saveCachedTranslation(sourceText, data.translation, translationType)
         return data.translation
       })
       .finally(() => {
-        delete translationRequests[cacheKey]
+        delete translationRequests[requestKey]
       })
   }
 
-  return translationRequests[cacheKey]
+  return translationRequests[requestKey]
 }
 
 async function loadPrototypeParagraphTranslation(paragraph, options = {}) {
@@ -461,7 +461,7 @@ async function loadPrototypeParagraphTranslation(paragraph, options = {}) {
   setRecordValue(translationLoadingByParagraphId, paragraphStateKey, true)
 
   try {
-    const translation = await getPrototypeTranslation(sourceText, options)
+    const translation = await getPrototypeTranslation(sourceText, 'paragraph', options)
 
     if (paragraphRequestVersions[paragraphStateKey] !== requestVersion) {
       return
@@ -517,7 +517,7 @@ async function loadPrototypeSentenceTranslation(sentence, paragraph, options = {
   setRecordValue(translationLoadingBySentenceId, sentenceStateKey, true)
 
   try {
-    const translation = await getPrototypeTranslation(sourceText, options)
+    const translation = await getPrototypeTranslation(sourceText, 'sentence', options)
 
     if (sentenceRequestVersions[sentenceStateKey] !== requestVersion) {
       return

@@ -3,8 +3,25 @@ import { getStorageItem, setStorageItem } from './storage.js'
 const STORAGE_KEY = 'ai-reading-translation-cache'
 const MAX_CACHE_SIZE = 100
 
-function createCacheKey(text) {
-  return text.trim()
+function normalizeTranslationSource(text) {
+  return String(text || '').replace(/\s+/g, ' ').trim()
+}
+
+function hashTranslationSource(text) {
+  let hash = 2166136261
+
+  for (const character of normalizeTranslationSource(text)) {
+    hash ^= character.codePointAt(0)
+    hash = Math.imul(hash, 16777619) >>> 0
+  }
+
+  return hash.toString(36)
+}
+
+export function createTranslationCacheKey(text, type = 'translation') {
+  const normalizedType = String(type || 'translation').replace(/[^a-z0-9-]/gi, '').toLowerCase() || 'translation'
+
+  return `${normalizedType}:${hashTranslationSource(text)}`
 }
 
 function readCache() {
@@ -24,20 +41,21 @@ function writeCache(cache) {
   return setStorageItem(STORAGE_KEY, JSON.stringify(Object.fromEntries(entries)))
 }
 
-export function getCachedTranslation(text) {
-  const cacheKey = createCacheKey(text)
-  const item = readCache()[cacheKey]
+export function getCachedTranslation(text, type) {
+  const cache = readCache()
+  const cacheKey = createTranslationCacheKey(text, type)
+  const item = cache[cacheKey] || cache[normalizeTranslationSource(text)]
 
   return item?.translation || ''
 }
 
-export function saveCachedTranslation(text, translation) {
-  if (!text.trim() || !translation.trim()) {
+export function saveCachedTranslation(text, translation, type) {
+  if (!normalizeTranslationSource(text) || !translation.trim()) {
     return false
   }
 
   const cache = readCache()
-  cache[createCacheKey(text)] = {
+  cache[createTranslationCacheKey(text, type)] = {
     translation,
     savedAt: new Date().toISOString(),
   }
