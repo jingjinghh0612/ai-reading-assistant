@@ -1,13 +1,20 @@
-export function createTranslatePrompt(text) {
+export function createTranslatePrompt(text, type = 'sentence') {
+  if (type === 'paragraph') {
+    return `
+你是英语阅读助手。请把下面英文段落翻译成自然中文。
+保留原意，适合中文读者阅读。
+只输出译文，不要解释。
+
+英文：
+${text}
+`
+  }
+
   return `
-Translate the following English sentence into Simplified Chinese.
+你是英语阅读助手。请把下面英文句子翻译成自然中文。
+只输出译文，不要解释，不要加引号。
 
-Rules:
-- Return only the Chinese translation.
-- Do not include markdown, quotation marks, labels, or explanations.
-- Make it natural and easy for beginner English learners to understand.
-
-Sentence:
+英文：
 ${text}
 `
 }

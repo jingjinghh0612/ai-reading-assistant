@@ -28,6 +28,7 @@ function sendApiError(response, error, fallbackMessage) {
 
 app.post('/api/translate', async (request, response) => {
   const text = request.body?.text?.trim()
+  const type = request.body?.type === 'paragraph' ? 'paragraph' : 'sentence'
 
   if (!text) {
     response.status(400).json({
@@ -37,7 +38,7 @@ app.post('/api/translate', async (request, response) => {
   }
 
   try {
-    const translation = await translateSentence(text)
+    const translation = await translateSentence(text, type)
 
     response.json({
       translation,

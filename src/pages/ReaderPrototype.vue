@@ -430,7 +430,7 @@ function getPrototypeTranslation(sourceText, translationType, options = {}) {
   }
 
   if (!translationRequests[requestKey]) {
-    translationRequests[requestKey] = requestTranslation(sourceText)
+    translationRequests[requestKey] = requestTranslation(sourceText, translationType)
       .then((data) => {
         saveCachedTranslation(sourceText, data.translation, translationType)
         return data.translation

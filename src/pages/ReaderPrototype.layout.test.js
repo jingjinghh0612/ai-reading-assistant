@@ -180,7 +180,7 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(readerPrototypeSource, /translationByParagraphId/)
     assert.match(readerPrototypeSource, /translationLoadingByParagraphId/)
     assert.match(readerPrototypeSource, /translationErrorByParagraphId/)
-    assert.match(readerPrototypeSource, /requestTranslation\(sourceText\)/)
+    assert.match(readerPrototypeSource, /requestTranslation\(sourceText,\s*translationType\)/)
     assert.match(readerPrototypeSource, /saveCachedTranslation\(sourceText,\s*data\.translation,\s*translationType\)/)
     assert.match(readerPrototypeSource, /watch\(/)
     assert.match(readerPrototypeSource, /:paragraphs="displayParagraphs"/)
