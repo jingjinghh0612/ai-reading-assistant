@@ -7,17 +7,19 @@ const routerSource = readFileSync(new URL('./index.js', import.meta.url), 'utf8'
 describe('router entry contract', () => {
   it('uses the new reader workspace as the primary /reader entry', () => {
     assert.match(routerSource, /import\s+ReaderLegacy\s+from\s+['"]\.\.\/pages\/Reader\.vue['"]/)
-    assert.match(routerSource, /import\s+Reader\s+from\s+['"]\.\.\/pages\/ReaderPrototype\.vue['"]/)
+    assert.match(routerSource, /import\s+ReaderWorkspace\s+from\s+['"]\.\.\/pages\/ReaderWorkspace\.vue['"]/)
+    assert.doesNotMatch(routerSource, /import\s+Reader\s+from\s+['"]\.\.\/pages\/ReaderPrototype\.vue['"]/)
     assert.match(
       routerSource,
-      /path:\s*['"]\/reader['"][\s\S]*name:\s*['"]reader['"][\s\S]*component:\s*Reader[\s\S]*meta:\s*\{[\s\S]*standalone:\s*true/,
+      /path:\s*['"]\/reader['"][\s\S]*name:\s*['"]reader['"][\s\S]*component:\s*ReaderWorkspace[\s\S]*meta:\s*\{[\s\S]*standalone:\s*true/,
     )
   })
 
   it('keeps compatibility routes for the old reader and prototype URL', () => {
+    assert.match(routerSource, /import\s+ReaderPrototype\s+from\s+['"]\.\.\/pages\/ReaderPrototype\.vue['"]/)
     assert.match(
       routerSource,
-      /path:\s*['"]\/reader-prototype['"][\s\S]*name:\s*['"]reader-prototype['"][\s\S]*component:\s*Reader[\s\S]*meta:\s*\{[\s\S]*standalone:\s*true/,
+      /path:\s*['"]\/reader-prototype['"][\s\S]*name:\s*['"]reader-prototype['"][\s\S]*component:\s*ReaderPrototype[\s\S]*meta:\s*\{[\s\S]*standalone:\s*true/,
     )
     assert.match(
       routerSource,

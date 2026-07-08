@@ -1,6 +1,6 @@
 <template>
   <div class="reader-prototype">
-    <PrototypeTopbar
+    <ReaderWorkspaceTopbar
       :book="currentBook"
       :chapter="currentChapter"
       :show-translation="showTranslation"
@@ -20,7 +20,7 @@
     />
 
     <div class="prototype-workspace">
-      <PrototypeSidebar
+      <ReaderWorkspaceSidebar
         :books="books"
         :chapters="chapters"
         :active-book-id="activeBookId"
@@ -33,7 +33,7 @@
       />
 
       <main class="prototype-reader" aria-label="英语阅读区">
-        <PrototypeBookImportPanel
+        <ReaderWorkspaceBookImportPanel
           v-if="isBookImportOpen"
           :title="bookImportTitle"
           :file-name="bookImportFile?.name || ''"
@@ -45,7 +45,7 @@
           @submit="importSelectedBookFile"
           @cancel="closeBookImport"
         />
-        <PrototypePasteEditor
+        <ReaderWorkspacePasteEditor
           v-else-if="isPasteEditorOpen"
           v-model="pasteDraft"
           :message="pasteArticleMessage"
@@ -54,7 +54,7 @@
           @cancel="closePasteEditor"
           @read-clipboard="readClipboardIntoDraft"
         />
-        <PrototypeReadingPaper
+        <ReaderWorkspaceReadingPaper
           v-else-if="currentChapter"
           :chapter="currentChapter"
           :paragraphs="displayParagraphs"
@@ -84,7 +84,7 @@
         </section>
       </main>
 
-      <PrototypeAssistant
+      <ReaderWorkspaceAssistant
         :word="selectedWordEntry"
         :vocabulary="chapterVocabulary"
         :wordbook="mockWordbook"
@@ -107,12 +107,12 @@
 import { computed, ref, watch } from 'vue'
 import { requestTranslation } from '../api/translate.js'
 import { requestPrototypeWordExplanation } from '../api/prototypeWord.js'
-import PrototypeAssistant from '../components/reader-prototype/PrototypeAssistant.vue'
-import PrototypeBookImportPanel from '../components/reader-prototype/PrototypeBookImportPanel.vue'
-import PrototypePasteEditor from '../components/reader-prototype/PrototypePasteEditor.vue'
-import PrototypeReadingPaper from '../components/reader-prototype/PrototypeReadingPaper.vue'
-import PrototypeSidebar from '../components/reader-prototype/PrototypeSidebar.vue'
-import PrototypeTopbar from '../components/reader-prototype/PrototypeTopbar.vue'
+import ReaderWorkspaceAssistant from '../components/reader-workspace/ReaderWorkspaceAssistant.vue'
+import ReaderWorkspaceBookImportPanel from '../components/reader-workspace/ReaderWorkspaceBookImportPanel.vue'
+import ReaderWorkspacePasteEditor from '../components/reader-workspace/ReaderWorkspacePasteEditor.vue'
+import ReaderWorkspaceReadingPaper from '../components/reader-workspace/ReaderWorkspaceReadingPaper.vue'
+import ReaderWorkspaceSidebar from '../components/reader-workspace/ReaderWorkspaceSidebar.vue'
+import ReaderWorkspaceTopbar from '../components/reader-workspace/ReaderWorkspaceTopbar.vue'
 import { prototypeBooks, prototypeChapterContent, prototypeDictionary } from '../data/readerPrototypeData.js'
 import {
   createPastedPrototypeChapterContent,

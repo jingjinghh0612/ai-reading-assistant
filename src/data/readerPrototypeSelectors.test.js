@@ -23,7 +23,7 @@ function flattenPrototypeTokens(chapterContent) {
   )
 }
 
-describe('reader prototype selectors', () => {
+describe('reader workspace selectors', () => {
   it('selects the active book and falls back to the first book', () => {
     assert.equal(findPrototypeBook(prototypeBooks, 'quiet-observatory').title, 'The Quiet Observatory')
     assert.equal(findPrototypeBook(prototypeBooks, 'missing-book').id, prototypeBooks[0].id)
@@ -37,7 +37,7 @@ describe('reader prototype selectors', () => {
     assert.deepEqual(getPrototypeChapters(null), [])
   })
 
-  it('keeps the default prototype shelf focused on books with local chapter content', () => {
+  it('keeps the default reader workspace shelf focused on books with local chapter content', () => {
     assert.deepEqual(
       prototypeBooks.map((book) => book.id),
       ['quiet-observatory'],
@@ -282,7 +282,7 @@ describe('reader prototype selectors', () => {
     )
   })
 
-  it('maps AI word explanations to the prototype word panel contract with sentence context', () => {
+  it('maps AI word explanations to the reader workspace word panel contract with sentence context', () => {
     assert.equal(typeof mapAiWordDetailToWordPanel, 'function')
 
     assert.deepEqual(
@@ -318,7 +318,7 @@ describe('reader prototype selectors', () => {
     )
   })
 
-  it('creates temporary prototype chapter content from pasted plain text', () => {
+  it('creates temporary reader workspace chapter content from pasted plain text', () => {
     const pastedChapter = createPastedPrototypeChapterContent(
       'First pasted sentence. Second sentence!\n\nAnother paragraph asks why?',
     )
@@ -449,7 +449,7 @@ describe('reader prototype selectors', () => {
     })
   })
 
-  it('creates clickable word tokens from unstructured prototype text', () => {
+  it('creates clickable word tokens from unstructured reader workspace text', () => {
     assert.equal(typeof selectors.getPrototypeClickableSentenceTokens, 'function')
 
     const [firstWord, firstGap, secondWord] = selectors.getPrototypeClickableSentenceTokens({
@@ -640,7 +640,7 @@ describe('reader prototype selectors', () => {
   })
 
   describe('sentence highlight helpers', () => {
-    it('derives default sentence highlights from highlighted prototype data', () => {
+    it('derives default sentence highlights from highlighted reader workspace data', () => {
       assert.equal(typeof selectors.getDefaultPrototypeHighlights, 'function')
 
       assert.deepEqual(selectors.getDefaultPrototypeHighlights(prototypeChapterContent['chapter-4']), {

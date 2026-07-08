@@ -1,14 +1,14 @@
 # AI 英语阅读辅助系统
 
-基于 Vue 与大模型 API 的英语阅读辅助学习系统。项目不是单纯的英文阅读器，而是围绕“阅读、理解、积累、复习”设计的学习闭环：用户导入英文文本后，可以按句子精读、查看 AI 翻译、点击单词获得释义、加入生词本，并在复习页完成后续巩固。
+基于 Vue 与大模型 API 的英语阅读辅助系统。新版入口当前聚焦阅读工作台体验：用户导入英文文本后，可以进行章节化阅读、按需查看句子或段落翻译、点击单词获得释义、加入生词本，并用手动高亮标记重点内容。
 
-项目当前以新版阅读工作台作为正式阅读入口。新版阅读页继承了原型页中已经成熟的书架、章节结构、右侧单词面板、EPUB/PDF 导入、粘贴文章、按需句子/段落翻译和类 Obsidian / Notion 的手动高亮体验。
+项目当前以新版阅读工作台作为正式阅读入口。新版阅读页整合了早期版本中已经成熟的书架、章节结构、右侧单词面板、EPUB/PDF 导入、粘贴文章、按需句子/段落翻译和类 Obsidian / Notion 的手动高亮体验。
 
 ## 技术栈
 
 - 前端：Vue 3 Composition API、Vue Router、Vite
 - 后端：Node.js、Express
-- AI：Google Gemini API，默认模型 `gemini-2.5-flash-lite`
+- AI：DeepSeek API 作为默认翻译 provider，默认模型 `deepseek-v4-flash`；Gemini 保留为可选 provider 和旧功能兼容
 - 存储：localStorage 与页面内存态
 - 测试：Node.js 内置 test runner
 - 样式：原生 CSS
@@ -19,8 +19,8 @@
 - 阅读页支持书架、章节、EPUB/PDF 导入、粘贴文章、句子级阅读、按需句子/段落翻译和阅读进度展示。
 - 点击单词获取 AI 释义、词性、定义和例句，并可加入本地生词本。
 - 右侧 AI 面板支持文章摘要和关键词提取。
-- 生词本支持搜索、删除、掌握标记和复习状态筛选。
-- 复习页展示到期单词，并记录“记得 / 忘记”的复习结果。
+- 生词本保留基础管理能力，支持搜索、删除、掌握标记和复习状态筛选。
+- 复习页保留基础到期单词展示和“记得 / 忘记”记录能力，后续再完善为完整学习闭环。
 - AI 请求支持超时、重试、缓存、错误提示和无 API Key 时的 mock fallback。
 - `/reader` 提供新版阅读工作台，包含书架、章节、正文、右侧单词面板和手动句子高亮。
 - 新版阅读页高亮支持显示/隐藏、高亮笔模式、五种颜色、清除模式、按章节页面内记忆和刷新重置。
@@ -31,7 +31,7 @@
 | --- | --- | --- |
 | `/` | 首页 | 输入英文文章，查看历史文章 |
 | `/reader` | 新版阅读页 | 书架、章节、导入、单词释义、按需翻译和高亮 |
-| `/reader-prototype` | 新版阅读页兼容入口 | 保留旧原型页链接，指向新版阅读页 |
+| `/reader-prototype` | 新版阅读页兼容入口 | 保留旧入口链接，指向新版阅读页 |
 | `/reader-legacy` | 旧版阅读页 | 旧的句子级阅读、翻译、单词解释、摘要流程 |
 | `/vocabulary` | 生词本 | 管理已保存单词 |
 | `/review` | 复习页 | 复习到期生词 |
@@ -51,14 +51,15 @@ ai-reading-app-github-ready
 │  ├─ api                       # 前端 API 请求封装
 │  ├─ components
 │  │  ├─ SentenceViewer.vue     # 旧版阅读页句子展示、翻译卡、单词卡
-│  │  └─ reader-prototype       # 新版阅读页顶部栏、侧边栏、正文和右侧面板
+│  │  └─ reader-workspace       # 新版阅读页顶部栏、侧边栏、正文和右侧面板
 │  ├─ data
 │  │  ├─ readerPrototypeData.js       # 新版阅读页本地书籍、章节、词典数据
 │  │  └─ readerPrototypeSelectors.js  # 新版阅读页选择器和高亮 helper
 │  ├─ pages
 │  │  ├─ Home.vue
 │  │  ├─ Reader.vue                  # 旧版阅读页，路由 /reader-legacy
-│  │  ├─ ReaderPrototype.vue         # 新版阅读页，路由 /reader
+│  │  ├─ ReaderWorkspace.vue         # 新版阅读工作台正式入口，路由 /reader
+│  │  ├─ ReaderPrototype.vue         # 旧原型 URL 兼容入口，路由 /reader-prototype
 │  │  ├─ Review.vue
 │  │  └─ Vocabulary.vue
 │  ├─ router
@@ -135,6 +136,10 @@ Copy-Item .env.example .env
 `.env.example` 中包含：
 
 ```env
+AI_PROVIDER=deepseek
+DEEPSEEK_API_KEY=your_deepseek_api_key_here
+DEEPSEEK_MODEL=deepseek-v4-flash
+
 GEMINI_API_KEY=your_gemini_api_key_here
 GEMINI_MODEL=gemini-2.5-flash-lite
 GEMINI_TIMEOUT_MS=25000
@@ -146,15 +151,18 @@ GEMINI_PROXY_URL=http://127.0.0.1:7890
 
 说明：
 
-- `GEMINI_API_KEY`：真实 Gemini API Key，只放在后端环境变量中，不要提交。
+- `AI_PROVIDER`：AI 翻译 provider，可选 `deepseek` 或 `gemini`，当前默认使用 `deepseek`。
+- `DEEPSEEK_API_KEY`：真实 DeepSeek API Key，只放在后端环境变量中，不要提交。
+- `DEEPSEEK_MODEL`：DeepSeek 模型名称，当前默认 `deepseek-v4-flash`。
+- `GEMINI_API_KEY`：真实 Gemini API Key，只放在后端环境变量中，用于切换 provider 或旧功能兼容，不要提交。
 - `GEMINI_MODEL`：Gemini 模型名称，当前默认 `gemini-2.5-flash-lite`。
-- `GEMINI_TIMEOUT_MS`：单次 Gemini 请求超时时间。
+- `GEMINI_TIMEOUT_MS`：单次 AI 请求超时时间。
 - `GEMINI_RETRY_COUNT`：失败后的重试次数。
 - `GEMINI_RETRY_DELAY_MS`：重试基础等待时间。
 - `AI_CACHE_TTL_MS`：AI 翻译缓存有效期。
 - `GEMINI_PROXY_URL`：可选，本地网络需要代理访问 Gemini 时使用。
 
-如果没有配置 `GEMINI_API_KEY`，后端会自动返回 mock 数据，方便本地开发和答辩演示。
+当 `AI_PROVIDER=deepseek` 时，句子和段落翻译会调用 DeepSeek；如果缺少 `DEEPSEEK_API_KEY`，后端会返回明确的配置错误。Gemini provider 仍保留 mock fallback，方便本地开发和答辩演示。
 
 ## 后端接口
 
@@ -165,7 +173,7 @@ POST /api/word-explain
 POST /api/summarize
 ```
 
-前端只请求本项目后端接口，不直接暴露或读取 `GEMINI_API_KEY`。
+前端只请求本项目后端接口，不直接暴露或读取 `DEEPSEEK_API_KEY`、`GEMINI_API_KEY`。
 
 ## 测试与构建
 
@@ -198,10 +206,10 @@ npm.cmd run build
 ## 答辩演示建议
 
 1. 在首页输入英文文章，进入 `/reader`。
-2. 点击句子，展示句子级翻译和当前句高亮。
-3. 点击单词，展示 AI 释义并加入生词本。
-4. 打开 `/vocabulary` 和 `/review`，说明生词学习闭环。
-5. 可打开 `/reader-legacy` 对比旧版阅读页，说明新版入口已经升级。
+2. 双击英文句子，展示按需句子翻译；点击“翻译本段”，展示段落翻译。
+3. 点击单词，展示本地词典、外部词典或 AI 兜底释义，并加入生词本。
+4. 展示 EPUB/PDF 导入、粘贴文章和手动高亮，说明新版阅读工作台已经作为正式入口。
+5. 可打开 `/reader-legacy` 对比旧版阅读页，说明旧版入口仍作为兼容页面保留。
 6. 展示 `npm.cmd test` 与 `npm.cmd run build` 的通过结果。
 
 ## 后续优化方向

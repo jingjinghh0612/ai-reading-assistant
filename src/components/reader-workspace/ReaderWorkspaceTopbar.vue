@@ -1,5 +1,5 @@
 <template>
-  <header class="prototype-topbar" aria-label="AI Reading reader prototype">
+  <header class="prototype-topbar" aria-label="AI Reading workspace">
     <div class="prototype-brand">
       <span class="prototype-brand-mark" aria-hidden="true">AI</span>
       <span class="prototype-brand-copy">

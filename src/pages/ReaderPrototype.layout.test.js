@@ -11,27 +11,35 @@ const readerPrototypeSelectorsUrl = new URL('../data/readerPrototypeSelectors.js
 const readerPrototypeSelectorsSource = existsSync(readerPrototypeSelectorsUrl)
   ? readFileSync(readerPrototypeSelectorsUrl, 'utf8')
   : ''
+const readerWorkspaceComponentNames = [
+  'ReaderWorkspaceAssistant',
+  'ReaderWorkspaceBookImportPanel',
+  'ReaderWorkspacePasteEditor',
+  'ReaderWorkspaceReadingPaper',
+  'ReaderWorkspaceSidebar',
+  'ReaderWorkspaceTopbar',
+]
 const readingPaperSource = readFileSync(
-  new URL('../components/reader-prototype/PrototypeReadingPaper.vue', import.meta.url),
+  new URL('../components/reader-workspace/ReaderWorkspaceReadingPaper.vue', import.meta.url),
   'utf8',
 )
 const sidebarSource = readFileSync(
-  new URL('../components/reader-prototype/PrototypeSidebar.vue', import.meta.url),
+  new URL('../components/reader-workspace/ReaderWorkspaceSidebar.vue', import.meta.url),
   'utf8',
 )
 const wordPanelSource = readFileSync(
-  new URL('../components/reader-prototype/PrototypeAssistant.vue', import.meta.url),
+  new URL('../components/reader-workspace/ReaderWorkspaceAssistant.vue', import.meta.url),
   'utf8',
 )
 const topbarSource = readFileSync(
-  new URL('../components/reader-prototype/PrototypeTopbar.vue', import.meta.url),
+  new URL('../components/reader-workspace/ReaderWorkspaceTopbar.vue', import.meta.url),
   'utf8',
 )
-const pasteEditorUrl = new URL('../components/reader-prototype/PrototypePasteEditor.vue', import.meta.url)
+const pasteEditorUrl = new URL('../components/reader-workspace/ReaderWorkspacePasteEditor.vue', import.meta.url)
 const pasteEditorSource = existsSync(pasteEditorUrl)
   ? readFileSync(pasteEditorUrl, 'utf8')
   : ''
-const bookImportPanelUrl = new URL('../components/reader-prototype/PrototypeBookImportPanel.vue', import.meta.url)
+const bookImportPanelUrl = new URL('../components/reader-workspace/ReaderWorkspaceBookImportPanel.vue', import.meta.url)
 const bookImportPanelSource = existsSync(bookImportPanelUrl)
   ? readFileSync(bookImportPanelUrl, 'utf8')
   : ''
@@ -47,7 +55,35 @@ function cssBlock(selector) {
   return prototypeStyleSource.slice(start, end + 2)
 }
 
-describe('reader prototype word definition panel contract', () => {
+describe('reader workspace word definition panel contract', () => {
+  it('loads promoted workspace components from the reader-workspace component directory', () => {
+    for (const componentName of readerWorkspaceComponentNames) {
+      const componentUrl = new URL(`../components/reader-workspace/${componentName}.vue`, import.meta.url)
+      assert.ok(existsSync(componentUrl), `${componentName}.vue should exist`)
+      assert.match(
+        readerPrototypeSource,
+        new RegExp(`import\\s+${componentName}\\s+from\\s+['"]\\.\\.\\/components\\/reader-workspace\\/${componentName}\\.vue['"]`),
+      )
+      assert.match(readerPrototypeSource, new RegExp(`<${componentName}(\\s|>)`))
+    }
+
+    assert.match(readerPrototypeSource, /from\s+['"]\.\.\/components\/reader-workspace\//)
+    assert.doesNotMatch(readerPrototypeSource, /from\s+['"]\.\.\/components\/reader-prototype\//)
+    assert.doesNotMatch(
+      readerPrototypeSource,
+      /import\s+Prototype(?:Assistant|BookImportPanel|PasteEditor|ReadingPaper|Sidebar|Topbar)\s+from/,
+    )
+    assert.doesNotMatch(
+      readerPrototypeSource,
+      /<Prototype(?:Assistant|BookImportPanel|PasteEditor|ReadingPaper|Sidebar|Topbar)(\s|>)/,
+    )
+  })
+
+  it('presents the promoted reader workspace without prototype wording in accessibility labels', () => {
+    assert.match(topbarSource, /aria-label="AI Reading workspace"/)
+    assert.doesNotMatch(topbarSource, /reader prototype/)
+  })
+
   it('uses the right side as a local word definition panel instead of AI chat', () => {
     assert.match(wordPanelSource, /单词释义/)
     assert.match(wordPanelSource, /本章重点词/)
@@ -60,8 +96,8 @@ describe('reader prototype word definition panel contract', () => {
     assert.doesNotMatch(wordPanelSource, /\$emit\('send'\)/)
   })
 
-  it('loads prototype reading data from a local data module', () => {
-    assert.ok(existsSync(readerPrototypeDataUrl), 'reader prototype data module should exist')
+  it('loads reader workspace reading data from a local data module', () => {
+    assert.ok(existsSync(readerPrototypeDataUrl), 'reader workspace data module should exist')
     assert.match(
       readerPrototypeSource,
       /import\s*\{\s*prototypeBooks,\s*prototypeChapterContent,\s*prototypeDictionary\s*\}\s*from\s*['"]\.\.\/data\/readerPrototypeData\.js['"]/,
@@ -87,7 +123,7 @@ describe('reader prototype word definition panel contract', () => {
   })
 
   it('keeps data selection and dictionary mapping in selector helpers', () => {
-    assert.ok(existsSync(readerPrototypeSelectorsUrl), 'reader prototype selectors module should exist')
+    assert.ok(existsSync(readerPrototypeSelectorsUrl), 'reader workspace selectors module should exist')
     assert.match(
       readerPrototypeSource,
       /from\s*['"]\.\.\/data\/readerPrototypeSelectors\.js['"]/,
@@ -168,7 +204,7 @@ describe('reader prototype word definition panel contract', () => {
     assert.doesNotMatch(readingPaperSource, /\$emit\('select-word',\s*token\.wordKey\)/)
   })
 
-  it('connects missing prototype translations to the existing AI translation endpoint', () => {
+  it('connects missing reader workspace translations to the existing AI translation endpoint', () => {
     assert.match(readerPrototypeSource, /import\s*\{\s*requestTranslation\s*\}\s*from\s*['"]\.\.\/api\/translate\.js['"]/)
     assert.match(
       readerPrototypeSource,
@@ -193,7 +229,7 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(readingPaperSource, /translate-paragraph-button/)
   })
 
-  it('uses typed content cache for on-demand prototype translations', () => {
+  it('uses typed content cache for on-demand reader workspace translations', () => {
     assert.match(readerPrototypeSource, /function getPrototypeTranslation\(sourceText,\s*translationType,\s*options\s*=\s*\{\}\)/)
     assert.match(readerPrototypeSource, /const requestKey\s*=\s*createTranslationCacheKey\(sourceText,\s*translationType\)/)
     assert.match(readerPrototypeSource, /getCachedTranslation\(sourceText,\s*translationType\)/)
@@ -251,7 +287,7 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(readerPrototypeSource, /return/)
   })
 
-  it('connects missing prototype dictionary entries to the prototype word lookup endpoint and vocabulary store', () => {
+  it('connects missing reader workspace dictionary entries to the workspace word lookup endpoint and vocabulary store', () => {
     assert.match(
       readerPrototypeSource,
       /import\s*\{\s*requestPrototypeWordExplanation\s*\}\s*from\s*['"]\.\.\/api\/prototypeWord\.js['"]/,
@@ -351,7 +387,7 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(prototypeStyleSource, /\.local-wordbook-remove/)
   })
 
-  it('removes decorative reading and dictionary labels from the prototype workspace', () => {
+  it('removes decorative reading and dictionary labels from the reader workspace', () => {
     assert.doesNotMatch(readingPaperSource, /reading-status/)
     assert.doesNotMatch(readingPaperSource, /paragraph-meta/)
     assert.doesNotMatch(readingPaperSource, /learning-tags/)
@@ -374,7 +410,7 @@ describe('reader prototype word definition panel contract', () => {
     assert.doesNotMatch(prototypeStyleSource, /\.word-tags/)
   })
 
-  it('does not render the obsolete floating notes bar in the reader prototype', () => {
+  it('does not render the obsolete floating notes bar in the reader workspace', () => {
     assert.doesNotMatch(readerPrototypeSource, /PrototypeFloatingNotes/)
     assert.doesNotMatch(readerPrototypeSource, /addMockNote/)
     assert.doesNotMatch(readerPrototypeSource, /const notes/)
@@ -387,7 +423,7 @@ describe('reader prototype word definition panel contract', () => {
     assert.doesNotMatch(prototypeStyleSource, /\.notes-list/)
   })
 
-  it('keeps the prototype toolbar focused on reading display controls only', () => {
+  it('keeps the reader workspace toolbar focused on reading display controls only', () => {
     assert.match(topbarSource, /toolstrip-shell/)
     assert.match(topbarSource, /prototype-brand-copy/)
     assert.match(topbarSource, /<strong>Reading<\/strong>/)
@@ -429,7 +465,7 @@ describe('reader prototype word definition panel contract', () => {
     assert.doesNotMatch(readerPrototypeSource, /canGoNextParagraph/)
   })
 
-  it('removes unused top-right action buttons from the prototype toolbar', () => {
+  it('removes unused top-right action buttons from the reader workspace toolbar', () => {
     assert.doesNotMatch(topbarSource, /prototype-actions/)
     assert.doesNotMatch(topbarSource, /prototype-action-button/)
     assert.doesNotMatch(topbarSource, /prototype-avatar/)
@@ -508,7 +544,7 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(prototypeStyleSource, /\.toolstrip-button\.switch-on/)
   })
 
-  it('wires prototype highlighter state through the page', () => {
+  it('wires reader workspace highlighter state through the page', () => {
     assert.match(readerPrototypeSource, /prototypeHighlightColors/)
     assert.match(readerPrototypeSource, /isHighlightMode/)
     assert.match(readerPrototypeSource, /activeHighlightColorId/)
@@ -549,9 +585,9 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(topbarSource, /chapter:\s*\{[\s\S]*default:\s*null/)
   })
 
-  it('wires pasted article mode into the prototype reader instead of the formal reader route', () => {
-    assert.ok(existsSync(pasteEditorUrl), 'paste editor should render inside the prototype reader area')
-    assert.match(readerPrototypeSource, /import\s+PrototypePasteEditor\s+from\s+['"]\.\.\/components\/reader-prototype\/PrototypePasteEditor\.vue['"]/)
+  it('wires pasted article mode into the reader workspace instead of the legacy reader route', () => {
+    assert.ok(existsSync(pasteEditorUrl), 'paste editor should render inside the reader workspace area')
+    assert.match(readerPrototypeSource, /import\s+ReaderWorkspacePasteEditor\s+from\s+['"]\.\.\/components\/reader-workspace\/ReaderWorkspacePasteEditor\.vue['"]/)
     assert.match(readerPrototypeSource, /readClipboardText/)
     assert.match(readerPrototypeSource, /createPastedPrototypeChapterContent/)
     assert.match(readerPrototypeSource, /pastedChapterContent/)
@@ -564,7 +600,7 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(readerPrototypeSource, /closePasteEditor/)
     assert.match(readerPrototypeSource, /submitPastedArticle/)
     assert.match(readerPrototypeSource, /readClipboardIntoDraft/)
-    assert.match(readerPrototypeSource, /<PrototypePasteEditor/)
+    assert.match(readerPrototypeSource, /<ReaderWorkspacePasteEditor/)
     assert.match(readerPrototypeSource, /v-else-if="isPasteEditorOpen"/)
     assert.match(readerPrototypeSource, /v-model="pasteDraft"/)
     assert.match(readerPrototypeSource, /@submit="submitPastedArticle"/)
@@ -586,9 +622,9 @@ describe('reader prototype word definition panel contract', () => {
     assert.doesNotMatch(readerPrototypeSource, /localStorage/)
   })
 
-  it('wires PDF and EPUB file imports into the real prototype bookshelf', () => {
+  it('wires PDF and EPUB file imports into the real reader workspace bookshelf', () => {
     assert.ok(existsSync(bookImportPanelUrl), 'book import panel should exist')
-    assert.match(readerPrototypeSource, /import\s+PrototypeBookImportPanel\s+from\s+['"]\.\.\/components\/reader-prototype\/PrototypeBookImportPanel\.vue['"]/)
+    assert.match(readerPrototypeSource, /import\s+ReaderWorkspaceBookImportPanel\s+from\s+['"]\.\.\/components\/reader-workspace\/ReaderWorkspaceBookImportPanel\.vue['"]/)
     assert.match(readerPrototypeSource, /parsePrototypeBookFile/)
     assert.match(readerPrototypeSource, /createImportedPrototypeBookFromText/)
     assert.match(readerPrototypeSource, /loadImportedPrototypeBooks/)
@@ -606,7 +642,7 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(readerPrototypeSource, /@delete-book="deleteImportedBook"/)
     assert.match(readerPrototypeSource, /async function deleteImportedBook/)
     assert.match(readerPrototypeSource, /await removeImportedPrototypeBook\(bookId\)/)
-    assert.match(readerPrototypeSource, /<PrototypeBookImportPanel/)
+    assert.match(readerPrototypeSource, /<ReaderWorkspaceBookImportPanel/)
     assert.match(readerPrototypeSource, /v-if="isBookImportOpen"/)
     assert.match(readerPrototypeSource, /@select-file="selectImportFile"/)
     assert.match(readerPrototypeSource, /@submit="importSelectedBookFile"/)
@@ -653,7 +689,7 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(prototypeStyleSource, /\.paste-editor-actions/)
   })
 
-  it('renders a prototype toolbar paste action with page-level feedback', () => {
+  it('renders a reader workspace toolbar paste action with page-level feedback', () => {
     assert.match(topbarSource, /pasteMessage/)
     assert.match(topbarSource, /粘贴文章/)
     assert.match(topbarSource, /paste-article/)
@@ -721,7 +757,7 @@ describe('reader prototype word definition panel contract', () => {
     assert.match(readingPaperSource, /@click\.stop="\$emit\('select-word'/)
   })
 
-  it('styles prototype highlighter controls and color variants', () => {
+  it('styles reader workspace highlighter controls and color variants', () => {
     assert.match(prototypeStyleSource, /\.highlight-color-swatches/)
     assert.match(prototypeStyleSource, /\.highlight-color-button/)
     assert.match(prototypeStyleSource, /\.highlight-clear-button/)
