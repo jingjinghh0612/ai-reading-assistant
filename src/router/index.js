@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Home from '../pages/Home.vue'
-import Reader from '../pages/Reader.vue'
-import ReaderPrototype from '../pages/ReaderPrototype.vue'
+import ReaderLegacy from '../pages/Reader.vue'
+import Reader from '../pages/ReaderPrototype.vue'
 import Review from '../pages/Review.vue'
 import Vocabulary from '../pages/Vocabulary.vue'
 
@@ -15,14 +15,22 @@ const routes = [
     path: '/reader',
     name: 'reader',
     component: Reader,
+    meta: {
+      standalone: true,
+    },
   },
   {
     path: '/reader-prototype',
     name: 'reader-prototype',
-    component: ReaderPrototype,
+    component: Reader,
     meta: {
       standalone: true,
     },
+  },
+  {
+    path: '/reader-legacy',
+    name: 'reader-legacy',
+    component: ReaderLegacy,
   },
   {
     path: '/vocabulary',

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --configLoader native",
+    "dev:all": "node scripts/startDev.js",
     "server": "node server/index.js",
     "server:dev": "node --watch server/index.js",
     "dictionary:build": "node server/scripts/buildLocalDictionary.js",
