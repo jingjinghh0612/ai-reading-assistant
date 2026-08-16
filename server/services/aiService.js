@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import '../config/loadEnv.js'
 import { GoogleGenAI } from '@google/genai'
 import {
   createSummarizePrompt,
@@ -6,7 +6,8 @@ import {
   createWordExplainPrompt,
 } from './prompts.js'
 
-const DEFAULT_MODEL = 'gemini-2.5-flash-lite'
+const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash-lite'
+const DEFAULT_DEEPSEEK_MODEL = 'deepseek-v4-flash'
 const DEFAULT_TIMEOUT_MS = 25000
 const DEFAULT_RETRY_COUNT = 2
 const DEFAULT_RETRY_DELAY_MS = 1200
@@ -14,6 +15,8 @@ const DEFAULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000
 const GEMINI_ERROR_MESSAGE = 'AI service is temporarily unavailable. Please try again.'
 const GEMINI_QUOTA_ERROR_MESSAGE =
   'Gemini quota has been reached. Please wait and try again later, or use another API key/model.'
+const TRANSLATION_ERROR_MESSAGE = '翻译失败，请稍后重试。'
+const DEEPSEEK_ENDPOINT = 'https://api.deepseek.com/chat/completions'
 const translationCache = new Map()
 const pendingTranslations = new Map()
 
@@ -39,8 +42,20 @@ function hasGeminiConfig() {
   return Boolean(process.env.GEMINI_API_KEY)
 }
 
+function hasDeepSeekConfig() {
+  return Boolean(process.env.DEEPSEEK_API_KEY)
+}
+
+function getAiProvider() {
+  return String(process.env.AI_PROVIDER || 'gemini').trim().toLowerCase()
+}
+
 function getGeminiModel() {
-  return process.env.GEMINI_MODEL || DEFAULT_MODEL
+  return process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL
+}
+
+function getDeepSeekModel() {
+  return process.env.DEEPSEEK_MODEL || DEFAULT_DEEPSEEK_MODEL
 }
 
 function getGeminiTimeoutMs() {
@@ -111,8 +126,17 @@ function createGeminiServiceError(error) {
   return serviceError
 }
 
-function createTranslationCacheKey(text) {
-  return `${getGeminiModel()}::${text.trim()}`
+function createTranslationServiceError(message = TRANSLATION_ERROR_MESSAGE, statusCode = 503) {
+  const serviceError = new Error(message)
+  serviceError.statusCode = statusCode
+  return serviceError
+}
+
+function createTranslationCacheKey(text, type = 'sentence') {
+  const provider = getAiProvider()
+  const model = provider === 'deepseek' ? getDeepSeekModel() : getGeminiModel()
+
+  return `${provider}:${model}:${type}::${text.trim()}`
 }
 
 function getCachedValue(cache, key, options = {}) {
@@ -207,6 +231,74 @@ async function callGemini(prompt) {
   throw createGeminiServiceError(lastError)
 }
 
+async function callDeepSeek(prompt) {
+  if (!hasDeepSeekConfig()) {
+    throw createTranslationServiceError('DeepSeek API key is not configured.', 500)
+  }
+
+  let response
+
+  try {
+    response = await fetch(DEEPSEEK_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: getDeepSeekModel(),
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        thinking: {
+          type: 'disabled',
+        },
+        stream: false,
+      }),
+    })
+  } catch (error) {
+    console.warn(`DeepSeek request failed: ${getSafeErrorSummary(error)}`)
+    throw createTranslationServiceError()
+  }
+
+  let data
+
+  try {
+    data = await response.json()
+  } catch {
+    throw createTranslationServiceError()
+  }
+
+  if (!response.ok) {
+    throw createTranslationServiceError(TRANSLATION_ERROR_MESSAGE, response.status || 503)
+  }
+
+  const text = data?.choices?.[0]?.message?.content?.trim()
+
+  if (!text) {
+    throw createTranslationServiceError()
+  }
+
+  return text
+}
+
+async function translateWithSelectedProvider(prompt) {
+  const provider = getAiProvider()
+
+  if (provider === 'deepseek') {
+    return callDeepSeek(prompt)
+  }
+
+  if (provider === 'gemini') {
+    return cleanTextResponse(await callGemini(prompt))
+  }
+
+  throw createTranslationServiceError(`Unsupported AI provider: ${provider}`, 500)
+}
+
 async function useMockWithoutApiKey(mockRequest, delayMs = 300) {
   await wait(delayMs)
   return mockRequest()
@@ -248,34 +340,39 @@ function parseJsonObject(text) {
 
 const MOCK_WORDS = {
   learn: {
-    meaning: '\u5b66\u4e60\uff1b\u638c\u63e1',
+    meaning: '学习；掌握',
+    definition: 'To get knowledge or skill by study or practice.',
     partOfSpeech: 'verb',
     example: 'I learn English by reading every day.',
   },
   reading: {
-    meaning: '\u9605\u8bfb\uff1b\u8bfb\u7269',
+    meaning: '阅读；读物',
+    definition: 'The activity of looking at and understanding written words.',
     partOfSpeech: 'noun',
     example: 'Reading helps you notice useful sentence patterns.',
   },
   language: {
-    meaning: '\u8bed\u8a00',
+    meaning: '语言',
+    definition: 'A system of words people use to communicate.',
     partOfSpeech: 'noun',
     example: 'Language becomes easier when you meet it often.',
   },
   important: {
-    meaning: '\u91cd\u8981\u7684',
+    meaning: '重要的',
+    definition: 'Having great value or effect.',
     partOfSpeech: 'adjective',
     example: 'It is important to review new words.',
   },
   practice: {
-    meaning: '\u7ec3\u4e60\uff1b\u5b9e\u8df5',
+    meaning: '练习；实践',
+    definition: 'Repeated activity that helps you improve a skill.',
     partOfSpeech: 'noun / verb',
     example: 'Practice makes difficult words feel familiar.',
   },
 }
 
 function mockTranslateSentence(text) {
-  return `\u6a21\u62df\u7ffb\u8bd1\uff1a${text}`
+  return `模拟翻译：${text}`
 }
 
 function mockExplainWord(word) {
@@ -291,9 +388,10 @@ function mockExplainWord(word) {
 
   return {
     word,
-    meaning: `\u5173\u4e8e "${word}" \u7684\u6a21\u62df\u91ca\u4e49`,
-    partOfSpeech: 'unknown',
-    example: `Try to understand "${word}" from the full sentence.`,
+    meaning: '',
+    definition: '',
+    partOfSpeech: '',
+    example: '',
   }
 }
 
@@ -301,17 +399,19 @@ function mockSummarizeText(text) {
   const shortText = text.length > 80 ? `${text.slice(0, 80)}...` : text
 
   return {
-    summary: `\u6a21\u62df\u6458\u8981\uff1a${shortText}`,
+    summary: `模拟摘要：${shortText}`,
     keywords: ['reading', 'english', 'practice'],
   }
 }
 
-export async function translateSentence(text) {
-  if (!hasGeminiConfig()) {
+export async function translateSentence(text, type = 'sentence') {
+  const provider = getAiProvider()
+
+  if (provider === 'gemini' && !hasGeminiConfig()) {
     return useMockWithoutApiKey(() => mockTranslateSentence(text), 400)
   }
 
-  const cacheKey = createTranslationCacheKey(text)
+  const cacheKey = createTranslationCacheKey(text, type)
   const cachedTranslation = getCachedValue(translationCache, cacheKey)
 
   if (cachedTranslation) {
@@ -320,11 +420,11 @@ export async function translateSentence(text) {
 
   try {
     return await getPendingTranslation(cacheKey, async () => {
-      const prompt = createTranslatePrompt(text)
-      const translation = cleanTextResponse(await callGemini(prompt))
+      const prompt = createTranslatePrompt(text, type)
+      const translation = cleanTextResponse(await translateWithSelectedProvider(prompt))
 
       if (!translation) {
-        throw new Error(GEMINI_ERROR_MESSAGE)
+        throw createTranslationServiceError()
       }
 
       setCachedValue(translationCache, cacheKey, translation)
@@ -336,7 +436,7 @@ export async function translateSentence(text) {
     })
 
     if (staleTranslation) {
-      console.warn('Gemini failed, using stale translation cache.')
+      console.warn('AI translation failed, using stale translation cache.')
       return staleTranslation
     }
 
@@ -358,8 +458,9 @@ export async function explainWord(word) {
 
   return {
     word: parsed.word || word,
-    meaning: parsed.meaning || parsed.definition || '',
-    partOfSpeech: parsed.partOfSpeech || 'unknown',
+    meaning: parsed.meaning || '',
+    definition: parsed.definition || '',
+    partOfSpeech: parsed.partOfSpeech?.toLowerCase?.() === 'unknown' ? '' : parsed.partOfSpeech || '',
     example: parsed.example || '',
   }
 }

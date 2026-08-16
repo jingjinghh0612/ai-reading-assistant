@@ -1,84 +1,80 @@
-# AI 英语阅读助手
+# AI 英语阅读辅助系统
 
-一个面向英语初学者的 AI 阅读辅助网站。用户可以输入英文文章，按句子阅读文章，并查看句子翻译、单词解释、文章总结，还可以把生词加入生词本。
+基于 Vue 与大模型 API 的英语阅读辅助系统。新版入口当前聚焦阅读工作台体验：用户导入英文文本后，可以进行章节化阅读、按需查看句子或段落翻译、点击单词获得释义、加入生词本，并用手动高亮标记重点内容。
 
-项目目前是一个前后端一体的 MVP：前端使用 Vue 3 + Vite，后端使用 Node.js + Express，AI 能力通过 Gemini API 接入；如果没有配置 Gemini API Key，后端会自动使用 mock 数据，保证项目仍然可以正常运行。
-
-## 项目亮点
-
-- 使用 Vue 3 组合式 API 编写页面逻辑，代码结构适合初学者阅读。
-- 使用 Vue Router 实现首页、阅读页、生词本页之间的跳转。
-- 后端统一封装 Gemini API 调用，前端不会直接接触 API Key。
-- 为翻译、单词解释、文章总结分别设计 Prompt。
-- 使用 localStorage 保存文章内容和生词本数据。
-- 阅读页加入内存缓存，避免同一句子、同一个单词重复请求 AI 接口。
-- 请求过程中有 loading 状态，请求失败时有错误提示。
-- 没有真实 API Key 时自动降级到 mock 数据，方便本地开发和演示。
+项目当前以新版阅读工作台作为正式阅读入口。新版阅读页整合了早期版本中已经成熟的书架、章节结构、右侧单词面板、EPUB/PDF 导入、粘贴文章、按需句子/段落翻译和类 Obsidian / Notion 的手动高亮体验。
 
 ## 技术栈
 
-- 前端：Vue 3、Vite、Vue Router、JavaScript
+- 前端：Vue 3 Composition API、Vue Router、Vite
 - 后端：Node.js、Express
-- AI 接口：Gemini API、`@google/genai`
-- 环境变量：dotenv
-- 请求代理支持：undici
-- 数据存储：localStorage
-- 样式：普通 CSS，没有使用 UI 框架和 Tailwind
+- AI：DeepSeek API 作为默认翻译 provider，默认模型 `deepseek-v4-flash`；Gemini 保留为可选 provider 和旧功能兼容
+- 存储：localStorage 与页面内存态
+- 测试：Node.js 内置 test runner
+- 样式：原生 CSS
 
-## 功能列表
+## 核心功能
 
-- 首页输入英文文章。
-- 点击“Start Reading”进入阅读页。
-- 阅读页自动把英文文章按句子切分展示。
-- 点击句子后高亮当前句子。
-- 点击句子后调用后端接口获取中文翻译。
-- 点击单词后调用后端接口获取中文释义、词性和英文例句。
-- 支持将单词加入生词本。
-- 生词本使用 localStorage 持久化保存。
-- 生词本支持去重和删除。
-- 支持对文章生成中文总结和英文关键词。
-- AI 请求支持 loading、错误提示、缓存和 mock fallback。
-- 移动端有基础适配。
+- `/home` 首页可导入英文文章并进入新版阅读工作台，根路径 `/` 默认直接打开阅读工作台。
+- 阅读页支持书架、章节、EPUB/PDF 导入、粘贴文章、句子级阅读、按需句子/段落翻译和阅读进度展示。
+- 点击单词获取 AI 释义、词性、定义和例句，并可加入本地生词本。
+- 右侧单词面板展示本地词典、外部词典或 AI 兜底释义，并支持加入生词本。
+- 生词本保留基础管理能力，支持搜索、删除、掌握标记和复习状态筛选。
+- 复习页保留基础到期单词展示和“记得 / 忘记”记录能力，后续再完善为完整学习闭环。
+- AI 请求支持超时、重试、缓存、错误提示和无 API Key 时的 mock fallback。
+- `/reader` 提供新版阅读工作台，包含书架、章节、正文、右侧单词面板和手动句子高亮。
+- 新版阅读页高亮支持显示/隐藏、高亮笔模式、五种颜色、清除模式、按章节页面内记忆和刷新重置。
 
-## 项目目录结构
+## 路由
+
+| 路径 | 页面 | 说明 |
+| --- | --- | --- |
+| `/` | 默认入口 | 重定向到 `/reader` |
+| `/home` | 首页 | 输入英文文章，查看历史文章 |
+| `/reader` | 新版阅读页 | 书架、章节、导入、单词释义、按需翻译和高亮 |
+| `/reader-prototype` | 新版阅读页兼容入口 | 保留旧入口链接，指向新版阅读页 |
+| `/reader-legacy` | 旧版阅读页 | 旧的句子级阅读、翻译、单词解释、摘要流程 |
+| `/vocabulary` | 生词本 | 管理已保存单词 |
+| `/review` | 复习页 | 复习到期生词 |
+
+## 目录结构
 
 ```text
-ai-reading-app
+ai-reading-app-github-ready
 ├─ public
 ├─ server
 │  ├─ index.js                 # Express 后端入口，提供 API 和静态文件服务
 │  ├─ setupProxy.js             # 可选代理配置，用于 Gemini 请求走本地代理
 │  └─ services
-│     └─ aiService.js           # Gemini API 调用封装和 mock fallback
+│     ├─ aiService.js           # Gemini 调用、超时、重试、缓存和 mock fallback
+│     └─ prompts.js             # 翻译、单词解释、摘要 prompt
 ├─ src
-│  ├─ api
-│  │  ├─ request.js             # 前端统一 POST 请求封装，包含超时和错误处理
-│  │  ├─ summarize.js           # 文章总结请求
-│  │  ├─ translate.js           # 句子翻译请求
-│  │  └─ word.js                # 单词解释请求
+│  ├─ api                       # 前端 API 请求封装
 │  ├─ components
-│  │  └─ SentenceViewer.vue     # 句子展示和单词点击组件
+│  │  ├─ SentenceViewer.vue     # 旧版阅读页句子展示、翻译卡、单词卡
+│  │  └─ reader-workspace       # 新版阅读页顶部栏、侧边栏、正文和右侧面板
+│  ├─ data
+│  │  ├─ readerPrototypeData.js       # 新版阅读页本地书籍、章节、词典数据
+│  │  └─ readerPrototypeSelectors.js  # 新版阅读页选择器和高亮 helper
 │  ├─ pages
-│  │  ├─ Home.vue               # 首页，输入英文文章
-│  │  ├─ Reader.vue             # 阅读页，处理翻译、单词解释、总结
-│  │  └─ Vocabulary.vue         # 生词本页
+│  │  ├─ Home.vue
+│  │  ├─ Reader.vue                  # 旧版阅读页，路由 /reader-legacy
+│  │  ├─ ReaderWorkspace.vue         # 新版阅读工作台正式入口，路由 /reader
+│  │  ├─ ReaderPrototype.vue         # 旧原型 URL 兼容入口，路由 /reader-prototype
+│  │  ├─ Review.vue
+│  │  └─ Vocabulary.vue
 │  ├─ router
-│  │  └─ index.js               # Vue Router 配置
-│  ├─ utils
-│  │  ├─ sentence.js            # 英文句子切分工具
-│  │  ├─ storage.js             # localStorage 安全读写工具
-│  │  ├─ vocabulary.js          # 生词本增删查和去重逻辑
-│  │  └─ word.js                # 单词切分和标准化工具
+│  │  └─ index.js
+│  ├─ utils                     # 句子切分、导航、字号、生词、历史、单词卡工具
 │  ├─ App.vue
 │  ├─ main.js
-│  └─ style.css                 # 全局样式
-├─ .env.example                 # 环境变量示例，可以提交到 GitHub
-├─ .gitignore
+│  └─ style.css
+├─ .env.example
 ├─ package.json
 └─ vite.config.js
 ```
 
-## 本地运行方式
+## 本地运行
 
 安装依赖：
 
@@ -86,177 +82,143 @@ ai-reading-app
 npm install
 ```
 
-开发前端页面：
+一键启动前端和后端开发服务：
+
+```bash
+npm run dev:all
+```
+
+Windows PowerShell 如果遇到 `npm.ps1 cannot be loaded`，可以改用：
+
+```powershell
+npm.cmd run dev:all
+```
+
+也可以在调试时分别启动前端和后端：
 
 ```bash
 npm run dev
-```
-
-启动后端服务：
-
-```bash
 npm run server
 ```
 
-构建前端静态文件：
+PowerShell 对应命令：
 
-```bash
-npm run build
+```powershell
+npm.cmd run dev
+npm.cmd run server
 ```
 
-后端会读取 `dist` 目录并提供静态文件服务。构建后可以访问：
+后端默认运行在：
 
 ```text
 http://127.0.0.1:3001/
 ```
 
-如果访问不了，通常是后端没有启动。请先运行：
+Vite 开发服务会根据终端输出给出本地访问地址，常见为：
 
-```bash
-npm run server
+```text
+http://localhost:5173/
 ```
 
-如果你在 Windows PowerShell 中看到 `npm.ps1 cannot be loaded`，这是本机执行策略限制，不是项目代码错误。可以改用：
+## 环境变量
 
-```bash
-npm.cmd run build
-npm.cmd run server
-```
-
-## 环境变量说明
-
-项目根目录提供了 `.env.example`，可以复制一份为 `.env`：
+复制环境变量示例：
 
 ```bash
 cp .env.example .env
 ```
 
-Windows PowerShell 可以使用：
+Windows PowerShell：
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-`.env` 示例：
+`.env.example` 中包含：
 
 ```env
+AI_PROVIDER=deepseek
+DEEPSEEK_API_KEY=your_deepseek_api_key_here
+DEEPSEEK_MODEL=deepseek-v4-flash
+
 GEMINI_API_KEY=your_gemini_api_key_here
 GEMINI_MODEL=gemini-2.5-flash-lite
+GEMINI_TIMEOUT_MS=25000
+GEMINI_RETRY_COUNT=2
+GEMINI_RETRY_DELAY_MS=1200
+AI_CACHE_TTL_MS=86400000
 GEMINI_PROXY_URL=http://127.0.0.1:7890
 ```
 
-变量说明：
+说明：
 
-- `GEMINI_API_KEY`：Gemini API Key，只能放在后端环境变量中。
-- `GEMINI_MODEL`：Gemini 模型名称，例如 `gemini-2.5-flash-lite`。
-- `GEMINI_PROXY_URL`：可选。如果本地网络需要代理才能访问 Gemini，可以配置本地代理地址。
+- `AI_PROVIDER`：AI 翻译 provider，可选 `deepseek` 或 `gemini`，当前默认使用 `deepseek`。
+- `DEEPSEEK_API_KEY`：真实 DeepSeek API Key，只放在后端环境变量中，不要提交。
+- `DEEPSEEK_MODEL`：DeepSeek 模型名称，当前默认 `deepseek-v4-flash`。
+- `GEMINI_API_KEY`：真实 Gemini API Key，只放在后端环境变量中，用于切换 provider 或旧功能兼容，不要提交。
+- `GEMINI_MODEL`：Gemini 模型名称，当前默认 `gemini-2.5-flash-lite`。
+- `GEMINI_TIMEOUT_MS`：单次 AI 请求超时时间。
+- `GEMINI_RETRY_COUNT`：失败后的重试次数。
+- `GEMINI_RETRY_DELAY_MS`：重试基础等待时间。
+- `AI_CACHE_TTL_MS`：AI 翻译缓存有效期。
+- `GEMINI_PROXY_URL`：可选，本地网络需要代理访问 Gemini 时使用。
 
-注意：`.env` 中可能包含真实 API Key，不要上传到 GitHub。项目中的 `.gitignore` 已经忽略 `.env`。
+当 `AI_PROVIDER=deepseek` 时，句子和段落翻译会调用 DeepSeek；如果缺少 `DEEPSEEK_API_KEY`，后端会返回明确的配置错误。Gemini provider 仍保留 mock fallback，方便本地开发和答辩演示。
 
-## Gemini API 接入说明
-
-AI 调用逻辑集中在：
-
-```text
-server/services/aiService.js
-```
-
-该文件封装了三个核心函数：
-
-- `translateSentence(text)`：翻译英文句子。
-- `explainWord(word)`：解释英文单词。
-- `summarizeText(text)`：总结英文文章。
-
-后端接口：
+## 后端接口
 
 ```text
+GET  /api/health
 POST /api/translate
 POST /api/word-explain
 POST /api/summarize
 ```
 
-前端只请求自己的后端接口，不会直接请求 Gemini API，也不会读取 `GEMINI_API_KEY`。
+前端只请求本项目后端接口，不直接暴露或读取 `DEEPSEEK_API_KEY`、`GEMINI_API_KEY`。
 
-如果检测到 `process.env.GEMINI_API_KEY`，后端会调用真实 Gemini API；如果没有检测到 Key，后端会返回 mock 数据。这样即使没有 API Key，也可以正常演示页面流程。
+## 测试与构建
 
-## Prompt 设计
+运行自动化测试：
 
-项目中为不同 AI 功能分别设计了简单 Prompt：
-
-- 翻译 Prompt：要求只返回中文翻译，适合英语初学者理解。
-- 单词解释 Prompt：要求严格返回 JSON，包含 `word`、`meaning`、`partOfSpeech`、`example`。
-- 总结 Prompt：要求严格返回 JSON，包含 `summary` 和 3 个英文关键词 `keywords`。
-
-后端会对 Gemini 返回的 JSON 做解析和兜底处理，避免模型返回格式不稳定时直接导致接口崩溃。
-
-## 核心功能实现思路
-
-### 文章传递
-
-首页输入文章后，优先保存到 localStorage。阅读页进入时从 localStorage 读取文章内容，再进行句子切分。
-
-### 句子切分
-
-`src/utils/sentence.js` 中提供句子切分函数，当前主要处理英文常见标点：
-
-```text
-.
-!
-?
+```bash
+npm test
 ```
 
-这个方案简单直观，适合 MVP 阶段。
+Windows PowerShell 可使用：
 
-### 点击句子翻译
-
-阅读页中点击句子后：
-
-1. 保存当前选中的句子下标。
-2. 设置 loading 状态。
-3. 调用 `/api/translate`。
-4. 成功后展示翻译结果。
-5. 失败后展示错误提示。
-6. 如果同一句子已经翻译过，优先使用内存缓存。
-
-### 点击单词解释
-
-句子组件会把句子拆成单词和标点。点击单词后，阅读页调用 `/api/word-explain`，展示单词原文、中文释义、词性和英文例句。
-
-同一个单词重复点击时，优先读取内存缓存，减少重复请求。
-
-### 生词本
-
-生词本逻辑封装在：
-
-```text
-src/utils/vocabulary.js
+```powershell
+npm.cmd test
 ```
 
-数据保存在 localStorage 中。保存时会使用标准化后的单词做去重，避免同一个单词被重复添加。
+生产构建：
 
-### 请求缓存和错误处理
-
-前端请求封装在：
-
-```text
-src/api/request.js
+```bash
+npm run build
 ```
 
-主要处理：
+Windows PowerShell 可使用：
 
-- POST JSON 请求。
-- 请求超时。
-- 接口错误提示。
-- 返回数据格式校验。
+```powershell
+npm.cmd run build
+```
 
-阅读页中使用普通对象做内存缓存，不引入 Pinia 或 Vuex，保持项目简单。
+构建产物输出到 `dist`。执行构建后，`npm run server` 会通过 Express 托管 `dist` 中的静态文件。
+
+## 答辩演示建议
+
+1. 打开 `/` 直接进入阅读工作台；也可在 `/home` 输入英文文章后进入 `/reader`。
+2. 双击英文句子，展示按需句子翻译；点击“翻译本段”，展示段落翻译。
+3. 点击单词，展示本地词典、外部词典或 AI 兜底释义，并加入生词本。
+4. 展示 EPUB/PDF 导入、粘贴文章和手动高亮，说明新版阅读工作台已经作为正式入口。
+5. 可打开 `/reader-legacy` 对比旧版阅读页，说明旧版入口仍作为兼容页面保留。
+6. 展示 `npm.cmd test` 与 `npm.cmd run build` 的通过结果。
 
 ## 后续优化方向
 
-- 优化句子切分，处理缩写、引号、小数点等更复杂情况。
-- 增加文章历史记录，方便用户查看之前阅读过的内容。
-- 生词本增加搜索、分类和复习状态。
-- 支持用户手动选择翻译风格，例如直译、意译、语法讲解。
-- 为 AI 请求增加更完善的重试机制和速率限制提示。
-- 增加单元测试或端到端测试，提升项目稳定性。
-- 支持部署到云服务器，并将前后端生产环境配置拆分得更清晰。
+- 高亮持久化：按 `chapterId + sentenceId` 保存颜色、备注和时间。
+- 高亮备注：点击高亮句子后，在右侧面板编辑备注、标签和关联单词。
+- 文章管理：支持标题、历史列表、删除、继续阅读和导入记录管理。
+- 数据同步：增加登录、云端生词本和跨设备阅读进度。
+- 阅读格式：扩展 PDF、EPUB 或网页文章导入。
+- 复习算法：加入更细的错词统计和间隔重复策略。
+- 部署配置：区分开发、演示和生产环境，完善线上部署说明。

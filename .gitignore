@@ -1,5 +1,6 @@
 # Logs
-logs
+logs/*
+!logs/.gitkeep
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -14,6 +15,9 @@ dist-ssr/
 .env
 .env.*
 !.env.example
+server/data/sources/
+.superpowers/
+.worktrees/
 
 # Editor directories and files
 .vscode/*
