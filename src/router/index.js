@@ -9,6 +9,10 @@ import Vocabulary from '../pages/Vocabulary.vue'
 const routes = [
   {
     path: '/',
+    redirect: '/reader',
+  },
+  {
+    path: '/home',
     name: 'home',
     component: Home,
   },

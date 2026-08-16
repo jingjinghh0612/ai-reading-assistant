@@ -2,7 +2,8 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { describe, it } from 'node:test'
 
-const readerPrototypeSource = readFileSync(new URL('./ReaderPrototype.vue', import.meta.url), 'utf8')
+const readerWorkspaceSource = readFileSync(new URL('./ReaderWorkspace.vue', import.meta.url), 'utf8')
+const readerPrototypeWrapperSource = readFileSync(new URL('./ReaderPrototype.vue', import.meta.url), 'utf8')
 const readerPrototypeDataUrl = new URL('../data/readerPrototypeData.js', import.meta.url)
 const readerPrototypeDataSource = existsSync(readerPrototypeDataUrl)
   ? readFileSync(readerPrototypeDataUrl, 'utf8')
@@ -10,6 +11,10 @@ const readerPrototypeDataSource = existsSync(readerPrototypeDataUrl)
 const readerPrototypeSelectorsUrl = new URL('../data/readerPrototypeSelectors.js', import.meta.url)
 const readerPrototypeSelectorsSource = existsSync(readerPrototypeSelectorsUrl)
   ? readFileSync(readerPrototypeSelectorsUrl, 'utf8')
+  : ''
+const readerWorkspaceTranslationsUrl = new URL('../composables/useReaderWorkspaceTranslations.js', import.meta.url)
+const readerWorkspaceTranslationsSource = existsSync(readerWorkspaceTranslationsUrl)
+  ? readFileSync(readerWorkspaceTranslationsUrl, 'utf8')
   : ''
 const readerWorkspaceComponentNames = [
   'ReaderWorkspaceAssistant',
@@ -55,26 +60,35 @@ function cssBlock(selector) {
   return prototypeStyleSource.slice(start, end + 2)
 }
 
+describe('reader prototype compatibility entry', () => {
+  it('wraps the promoted reader workspace implementation', () => {
+    assert.match(readerPrototypeWrapperSource, /<ReaderWorkspace\s*\/>/)
+    assert.match(readerPrototypeWrapperSource, /import\s+ReaderWorkspace\s+from\s+['"]\.\/ReaderWorkspace\.vue['"]/)
+    assert.doesNotMatch(readerPrototypeWrapperSource, /ReaderWorkspaceTopbar/)
+    assert.doesNotMatch(readerPrototypeWrapperSource, /reader-prototype/)
+  })
+})
+
 describe('reader workspace word definition panel contract', () => {
   it('loads promoted workspace components from the reader-workspace component directory', () => {
     for (const componentName of readerWorkspaceComponentNames) {
       const componentUrl = new URL(`../components/reader-workspace/${componentName}.vue`, import.meta.url)
       assert.ok(existsSync(componentUrl), `${componentName}.vue should exist`)
       assert.match(
-        readerPrototypeSource,
+        readerWorkspaceSource,
         new RegExp(`import\\s+${componentName}\\s+from\\s+['"]\\.\\.\\/components\\/reader-workspace\\/${componentName}\\.vue['"]`),
       )
-      assert.match(readerPrototypeSource, new RegExp(`<${componentName}(\\s|>)`))
+      assert.match(readerWorkspaceSource, new RegExp(`<${componentName}(\\s|>)`))
     }
 
-    assert.match(readerPrototypeSource, /from\s+['"]\.\.\/components\/reader-workspace\//)
-    assert.doesNotMatch(readerPrototypeSource, /from\s+['"]\.\.\/components\/reader-prototype\//)
+    assert.match(readerWorkspaceSource, /from\s+['"]\.\.\/components\/reader-workspace\//)
+    assert.doesNotMatch(readerWorkspaceSource, /from\s+['"]\.\.\/components\/reader-prototype\//)
     assert.doesNotMatch(
-      readerPrototypeSource,
+      readerWorkspaceSource,
       /import\s+Prototype(?:Assistant|BookImportPanel|PasteEditor|ReadingPaper|Sidebar|Topbar)\s+from/,
     )
     assert.doesNotMatch(
-      readerPrototypeSource,
+      readerWorkspaceSource,
       /<Prototype(?:Assistant|BookImportPanel|PasteEditor|ReadingPaper|Sidebar|Topbar)(\s|>)/,
     )
   })
@@ -99,7 +113,7 @@ describe('reader workspace word definition panel contract', () => {
   it('loads reader workspace reading data from a local data module', () => {
     assert.ok(existsSync(readerPrototypeDataUrl), 'reader workspace data module should exist')
     assert.match(
-      readerPrototypeSource,
+      readerWorkspaceSource,
       /import\s*\{\s*prototypeBooks,\s*prototypeChapterContent,\s*prototypeDictionary\s*\}\s*from\s*['"]\.\.\/data\/readerPrototypeData\.js['"]/,
     )
     assert.match(readerPrototypeDataSource, /export const prototypeBooks\s*=/)
@@ -109,23 +123,23 @@ describe('reader workspace word definition panel contract', () => {
       assert.match(readerPrototypeDataSource, new RegExp(`'${chapterId}':\\s*\\{`))
     }
 
-    assert.match(readerPrototypeSource, /selectedWordKey/)
-    assert.match(readerPrototypeSource, /selectedWordEntry/)
-    assert.match(readerPrototypeSource, /selectWord/)
-    assert.match(readerPrototypeSource, /已加入生词本/)
-    assert.doesNotMatch(readerPrototypeSource, /const books\s*=\s*\[/)
-    assert.doesNotMatch(readerPrototypeSource, /const chapters\s*=\s*\[/)
-    assert.doesNotMatch(readerPrototypeSource, /const paragraphs\s*=\s*\[/)
-    assert.doesNotMatch(readerPrototypeSource, /const mockDictionary\s*=\s*\{/)
-    assert.doesNotMatch(readerPrototypeSource, /mockAiMessages/)
-    assert.doesNotMatch(readerPrototypeSource, /sendMockQuestion/)
-    assert.doesNotMatch(readerPrototypeSource, /localStorage/)
+    assert.match(readerWorkspaceSource, /selectedWordKey/)
+    assert.match(readerWorkspaceSource, /selectedWordEntry/)
+    assert.match(readerWorkspaceSource, /selectWord/)
+    assert.match(readerWorkspaceSource, /已加入生词本/)
+    assert.doesNotMatch(readerWorkspaceSource, /const books\s*=\s*\[/)
+    assert.doesNotMatch(readerWorkspaceSource, /const chapters\s*=\s*\[/)
+    assert.doesNotMatch(readerWorkspaceSource, /const paragraphs\s*=\s*\[/)
+    assert.doesNotMatch(readerWorkspaceSource, /const mockDictionary\s*=\s*\{/)
+    assert.doesNotMatch(readerWorkspaceSource, /mockAiMessages/)
+    assert.doesNotMatch(readerWorkspaceSource, /sendMockQuestion/)
+    assert.doesNotMatch(readerWorkspaceSource, /localStorage/)
   })
 
   it('keeps data selection and dictionary mapping in selector helpers', () => {
     assert.ok(existsSync(readerPrototypeSelectorsUrl), 'reader workspace selectors module should exist')
     assert.match(
-      readerPrototypeSource,
+      readerWorkspaceSource,
       /from\s*['"]\.\.\/data\/readerPrototypeSelectors\.js['"]/,
     )
 
@@ -140,15 +154,15 @@ describe('reader workspace word definition panel contract', () => {
       'getPrototypeMockWordbook',
       'mapDictionaryEntryToWordPanel',
     ]) {
-      assert.match(readerPrototypeSource, new RegExp(selectorName))
+      assert.match(readerWorkspaceSource, new RegExp(selectorName))
       assert.match(readerPrototypeSelectorsSource, new RegExp(`export function ${selectorName}`))
     }
 
-    assert.doesNotMatch(readerPrototypeSource, /\.find\(\(book\)/)
-    assert.doesNotMatch(readerPrototypeSource, /\.find\(\(chapter\)/)
-    assert.doesNotMatch(readerPrototypeSource, /\.map\(\(item\) => item\.zh\)/)
-    assert.doesNotMatch(readerPrototypeSource, /entry\.meanings/)
-    assert.doesNotMatch(readerPrototypeSource, /entry\.examples/)
+    assert.doesNotMatch(readerWorkspaceSource, /\.find\(\(book\)/)
+    assert.doesNotMatch(readerWorkspaceSource, /\.find\(\(chapter\)/)
+    assert.doesNotMatch(readerWorkspaceSource, /\.map\(\(item\) => item\.zh\)/)
+    assert.doesNotMatch(readerWorkspaceSource, /entry\.meanings/)
+    assert.doesNotMatch(readerWorkspaceSource, /entry\.examples/)
   })
 
   it('renders clickable sentence tokens from structured data helpers instead of raw string matching', () => {
@@ -176,11 +190,11 @@ describe('reader workspace word definition panel contract', () => {
     assert.match(readingPaperSource, /select-word/)
     assert.match(readingPaperSource, /selectedWordKey/)
 
-    assert.doesNotMatch(readerPrototypeSource, /:clickable-words/)
-    assert.doesNotMatch(readerPrototypeSource, /clickableWordKeys/)
-    assert.doesNotMatch(readerPrototypeSource, /textBefore/)
-    assert.doesNotMatch(readerPrototypeSource, /textAfter/)
-    assert.doesNotMatch(readerPrototypeSource, /highlight:/)
+    assert.doesNotMatch(readerWorkspaceSource, /:clickable-words/)
+    assert.doesNotMatch(readerWorkspaceSource, /clickableWordKeys/)
+    assert.doesNotMatch(readerWorkspaceSource, /textBefore/)
+    assert.doesNotMatch(readerWorkspaceSource, /textAfter/)
+    assert.doesNotMatch(readerWorkspaceSource, /highlight:/)
     assert.doesNotMatch(readingPaperSource, /clickableWords/)
     assert.doesNotMatch(readingPaperSource, /clickableWordPattern/)
     assert.doesNotMatch(readingPaperSource, /getTextSegments/)
@@ -194,10 +208,10 @@ describe('reader workspace word definition panel contract', () => {
     assert.match(readingPaperSource, /surface:\s*token\.surface\s*\|\|\s*token\.text/)
     assert.match(readingPaperSource, /sentenceId:\s*token\.sentenceId/)
 
-    assert.match(readerPrototypeSource, /selectedWordContext/)
-    assert.match(readerPrototypeSource, /getPrototypeWordContext/)
+    assert.match(readerWorkspaceSource, /selectedWordContext/)
+    assert.match(readerWorkspaceSource, /getPrototypeWordContext/)
     assert.match(
-      readerPrototypeSource,
+      readerWorkspaceSource,
       /mapDictionaryEntryToWordPanel\(\s*prototypeDictionary\[selectedWordKey\.value\],\s*selectedWordContext\.value\s*\)/,
     )
     assert.match(wordPanelSource, /word\.sourceTranslation/)
@@ -205,22 +219,26 @@ describe('reader workspace word definition panel contract', () => {
   })
 
   it('connects missing reader workspace translations to the existing AI translation endpoint', () => {
-    assert.match(readerPrototypeSource, /import\s*\{\s*requestTranslation\s*\}\s*from\s*['"]\.\.\/api\/translate\.js['"]/)
+    assert.ok(existsSync(readerWorkspaceTranslationsUrl), 'reader workspace translation composable should exist')
     assert.match(
-      readerPrototypeSource,
-      /import\s*\{\s*createTranslationCacheKey,\s*getCachedTranslation,\s*saveCachedTranslation\s*\}\s*from\s*['"]\.\.\/utils\/translationCache\.js['"]/,
+      readerWorkspaceSource,
+      /import\s*\{\s*useReaderWorkspaceTranslations\s*\}\s*from\s*['"]\.\.\/composables\/useReaderWorkspaceTranslations\.js['"]/,
     )
-    assert.match(readerPrototypeSource, /getPrototypeLocalParagraphTranslation/)
-    assert.match(readerPrototypeSource, /getPrototypeParagraphSourceText/)
-    assert.match(readerPrototypeSource, /const displayParagraphs = computed/)
-    assert.match(readerPrototypeSource, /translationByParagraphId/)
-    assert.match(readerPrototypeSource, /translationLoadingByParagraphId/)
-    assert.match(readerPrototypeSource, /translationErrorByParagraphId/)
-    assert.match(readerPrototypeSource, /requestTranslation\(sourceText,\s*translationType\)/)
-    assert.match(readerPrototypeSource, /saveCachedTranslation\(sourceText,\s*data\.translation,\s*translationType\)/)
-    assert.match(readerPrototypeSource, /watch\(/)
-    assert.match(readerPrototypeSource, /:paragraphs="displayParagraphs"/)
-    assert.match(readerPrototypeSource, /@retry-translation="retryPrototypeTranslation"/)
+    assert.match(readerWorkspaceTranslationsSource, /import\s*\{\s*requestTranslation\s+as\s+defaultRequestTranslation\s*\}/)
+    assert.match(readerWorkspaceTranslationsSource, /getPrototypeLocalParagraphTranslation/)
+    assert.match(readerWorkspaceTranslationsSource, /getPrototypeParagraphSourceText/)
+    assert.match(readerWorkspaceTranslationsSource, /const displayParagraphs = computed/)
+    assert.match(readerWorkspaceTranslationsSource, /translationByParagraphId/)
+    assert.match(readerWorkspaceTranslationsSource, /translationLoadingByParagraphId/)
+    assert.match(readerWorkspaceTranslationsSource, /translationErrorByParagraphId/)
+    assert.match(readerWorkspaceTranslationsSource, /requestTranslation\(sourceText,\s*translationType\)/)
+    assert.match(readerWorkspaceTranslationsSource, /saveCachedTranslation\(sourceText,\s*data\.translation,\s*translationType\)/)
+    assert.match(readerWorkspaceSource, /useReaderWorkspaceTranslations\(\{[\s\S]*currentChapter[\s\S]*paragraphs[\s\S]*pastedChapterContent[\s\S]*\}\)/)
+    assert.match(readerWorkspaceSource, /displayParagraphs/)
+    assert.match(readerWorkspaceSource, /watch\(/)
+    assert.match(readerWorkspaceSource, /:paragraphs="displayParagraphs"/)
+    assert.match(readerWorkspaceSource, /@retry-translation="retryPrototypeTranslation"/)
+    assert.doesNotMatch(readerWorkspaceSource, /from\s+['"]\.\.\/api\/translate\.js['"]/)
 
     assert.match(readingPaperSource, /paragraph\.isTranslationLoading/)
     assert.match(readingPaperSource, /paragraph\.translationErrorMessage/)
@@ -230,86 +248,86 @@ describe('reader workspace word definition panel contract', () => {
   })
 
   it('uses typed content cache for on-demand reader workspace translations', () => {
-    assert.match(readerPrototypeSource, /function getPrototypeTranslation\(sourceText,\s*translationType,\s*options\s*=\s*\{\}\)/)
-    assert.match(readerPrototypeSource, /const requestKey\s*=\s*createTranslationCacheKey\(sourceText,\s*translationType\)/)
-    assert.match(readerPrototypeSource, /getCachedTranslation\(sourceText,\s*translationType\)/)
-    assert.match(readerPrototypeSource, /saveCachedTranslation\(sourceText,\s*data\.translation,\s*translationType\)/)
-    assert.match(readerPrototypeSource, /getPrototypeTranslation\(sourceText,\s*'paragraph',\s*options\)/)
-    assert.match(readerPrototypeSource, /getPrototypeTranslation\(sourceText,\s*'sentence',\s*options\)/)
-    assert.match(readerPrototypeSource, /loadPrototypeSentenceTranslation\(sentence,\s*paragraph\)/)
-    assert.match(readerPrototypeSource, /loadPrototypeParagraphTranslation\(paragraph\)/)
-    assert.match(readerPrototypeSource, /loadPrototypeSentenceTranslation\(sentence,\s*paragraph,\s*\{\s*refresh:\s*true\s*\}\)/)
-    assert.match(readerPrototypeSource, /loadPrototypeParagraphTranslation\(paragraph,\s*\{\s*refresh:\s*true\s*\}\)/)
+    assert.match(readerWorkspaceTranslationsSource, /function getPrototypeTranslation\(sourceText,\s*translationType,\s*options\s*=\s*\{\}\)/)
+    assert.match(readerWorkspaceTranslationsSource, /const requestKey\s*=\s*createTranslationCacheKey\(sourceText,\s*translationType\)/)
+    assert.match(readerWorkspaceTranslationsSource, /getCachedTranslation\(sourceText,\s*translationType\)/)
+    assert.match(readerWorkspaceTranslationsSource, /saveCachedTranslation\(sourceText,\s*data\.translation,\s*translationType\)/)
+    assert.match(readerWorkspaceTranslationsSource, /getPrototypeTranslation\(sourceText,\s*'paragraph',\s*options\)/)
+    assert.match(readerWorkspaceTranslationsSource, /getPrototypeTranslation\(sourceText,\s*'sentence',\s*options\)/)
+    assert.match(readerWorkspaceTranslationsSource, /loadPrototypeSentenceTranslation\(sentence,\s*paragraph\)/)
+    assert.match(readerWorkspaceTranslationsSource, /loadPrototypeParagraphTranslation\(paragraph\)/)
+    assert.match(readerWorkspaceTranslationsSource, /loadPrototypeSentenceTranslation\(sentence,\s*paragraph,\s*\{\s*refresh:\s*true\s*\}\)/)
+    assert.match(readerWorkspaceTranslationsSource, /loadPrototypeParagraphTranslation\(paragraph,\s*\{\s*refresh:\s*true\s*\}\)/)
   })
 
   it('loads sentence translations on demand and keeps paragraph translation manual', () => {
-    assert.match(readerPrototypeSource, /getPrototypeLocalSentenceTranslation/)
-    assert.match(readerPrototypeSource, /getPrototypeSentenceSourceText/)
-    assert.match(readerPrototypeSource, /getPrototypeTranslationStateKey/)
-    assert.match(readerPrototypeSource, /selectedSentenceId/)
-    assert.match(readerPrototypeSource, /translationBySentenceId/)
-    assert.match(readerPrototypeSource, /translationLoadingBySentenceId/)
-    assert.match(readerPrototypeSource, /translationErrorBySentenceId/)
-    assert.match(readerPrototypeSource, /loadPrototypeSentenceTranslation/)
-    assert.match(readerPrototypeSource, /selectPrototypeSentence/)
-    assert.match(readerPrototypeSource, /retryPrototypeSentenceTranslation/)
-    assert.match(readerPrototypeSource, /translatePrototypeParagraph/)
-    assert.match(readerPrototypeSource, /:selected-sentence-id="selectedSentenceId"/)
-    assert.match(readerPrototypeSource, /@select-sentence="selectPrototypeSentence"/)
-    assert.match(readerPrototypeSource, /@retry-sentence-translation="retryPrototypeSentenceTranslation"/)
-    assert.match(readerPrototypeSource, /@translate-paragraph="translatePrototypeParagraph"/)
-    assert.doesNotMatch(readerPrototypeSource, /function loadMissingPrototypeTranslations/)
-    assert.doesNotMatch(readerPrototypeSource, /watch\(\[showTranslation,\s*currentChapterContent\]/)
+    assert.match(readerWorkspaceTranslationsSource, /getPrototypeLocalSentenceTranslation/)
+    assert.match(readerWorkspaceTranslationsSource, /getPrototypeSentenceSourceText/)
+    assert.match(readerWorkspaceTranslationsSource, /getPrototypeTranslationStateKey/)
+    assert.match(readerWorkspaceSource, /selectedSentenceId/)
+    assert.match(readerWorkspaceTranslationsSource, /translationBySentenceId/)
+    assert.match(readerWorkspaceTranslationsSource, /translationLoadingBySentenceId/)
+    assert.match(readerWorkspaceTranslationsSource, /translationErrorBySentenceId/)
+    assert.match(readerWorkspaceTranslationsSource, /loadPrototypeSentenceTranslation/)
+    assert.match(readerWorkspaceSource, /selectPrototypeSentence/)
+    assert.match(readerWorkspaceSource, /retryPrototypeSentenceTranslation/)
+    assert.match(readerWorkspaceSource, /translatePrototypeParagraph/)
+    assert.match(readerWorkspaceSource, /:selected-sentence-id="selectedSentenceId"/)
+    assert.match(readerWorkspaceSource, /@select-sentence="selectPrototypeSentence"/)
+    assert.match(readerWorkspaceSource, /@retry-sentence-translation="retryPrototypeSentenceTranslation"/)
+    assert.match(readerWorkspaceSource, /@translate-paragraph="translatePrototypeParagraph"/)
+    assert.doesNotMatch(readerWorkspaceSource, /function loadMissingPrototypeTranslations/)
+    assert.doesNotMatch(readerWorkspaceSource, /watch\(\[showTranslation,\s*currentChapterContent\]/)
   })
 
   it('isolates pasted article translations and ignores stale translation responses', () => {
-    assert.match(readerPrototypeSource, /pastedArticleVersion/)
-    assert.match(readerPrototypeSource, /pastedArticleVersion\.value\s*\+=\s*1/)
+    assert.match(readerWorkspaceSource, /pastedArticleVersion/)
+    assert.match(readerWorkspaceSource, /pastedArticleVersion\.value\s*\+=\s*1/)
     assert.match(
-      readerPrototypeSource,
+      readerWorkspaceSource,
       /isPastedArticleActive\.value[\s\S]*pastedArticleVersion\.value/,
     )
-    assert.match(readerPrototypeSource, /function clearPrototypeTranslationState/)
-    assert.match(readerPrototypeSource, /translationByParagraphId\.value\s*=\s*\{\}/)
-    assert.match(readerPrototypeSource, /translationLoadingByParagraphId\.value\s*=\s*\{\}/)
-    assert.match(readerPrototypeSource, /translationErrorByParagraphId\.value\s*=\s*\{\}/)
-    assert.match(readerPrototypeSource, /translationBySentenceId\.value\s*=\s*\{\}/)
-    assert.match(readerPrototypeSource, /translationLoadingBySentenceId\.value\s*=\s*\{\}/)
-    assert.match(readerPrototypeSource, /translationErrorBySentenceId\.value\s*=\s*\{\}/)
-    assert.match(readerPrototypeSource, /let translationRequestVersion\s*=\s*0/)
-    assert.match(readerPrototypeSource, /translationRequestVersion\s*\+=\s*1/)
-    assert.match(readerPrototypeSource, /paragraphRequestVersions/)
-    assert.match(readerPrototypeSource, /sentenceRequestVersions/)
-    assert.match(readerPrototypeSource, /paragraphRequestVersions\[paragraphStateKey\]\s*=\s*requestVersion/)
-    assert.match(readerPrototypeSource, /sentenceRequestVersions\[sentenceStateKey\]\s*=\s*requestVersion/)
-    assert.match(readerPrototypeSource, /paragraphRequestVersions\[paragraphStateKey\]\s*!==\s*requestVersion/)
-    assert.match(readerPrototypeSource, /sentenceRequestVersions\[sentenceStateKey\]\s*!==\s*requestVersion/)
-    assert.match(readerPrototypeSource, /return/)
+    assert.match(readerWorkspaceTranslationsSource, /function clearPrototypeTranslationState/)
+    assert.match(readerWorkspaceTranslationsSource, /translationByParagraphId\.value\s*=\s*\{\}/)
+    assert.match(readerWorkspaceTranslationsSource, /translationLoadingByParagraphId\.value\s*=\s*\{\}/)
+    assert.match(readerWorkspaceTranslationsSource, /translationErrorByParagraphId\.value\s*=\s*\{\}/)
+    assert.match(readerWorkspaceTranslationsSource, /translationBySentenceId\.value\s*=\s*\{\}/)
+    assert.match(readerWorkspaceTranslationsSource, /translationLoadingBySentenceId\.value\s*=\s*\{\}/)
+    assert.match(readerWorkspaceTranslationsSource, /translationErrorBySentenceId\.value\s*=\s*\{\}/)
+    assert.match(readerWorkspaceTranslationsSource, /let translationRequestVersion\s*=\s*0/)
+    assert.match(readerWorkspaceTranslationsSource, /translationRequestVersion\s*\+=\s*1/)
+    assert.match(readerWorkspaceTranslationsSource, /paragraphRequestVersions/)
+    assert.match(readerWorkspaceTranslationsSource, /sentenceRequestVersions/)
+    assert.match(readerWorkspaceTranslationsSource, /paragraphRequestVersions\[paragraphStateKey\]\s*=\s*requestVersion/)
+    assert.match(readerWorkspaceTranslationsSource, /sentenceRequestVersions\[sentenceStateKey\]\s*=\s*requestVersion/)
+    assert.match(readerWorkspaceTranslationsSource, /paragraphRequestVersions\[paragraphStateKey\]\s*!==\s*requestVersion/)
+    assert.match(readerWorkspaceTranslationsSource, /sentenceRequestVersions\[sentenceStateKey\]\s*!==\s*requestVersion/)
+    assert.match(readerWorkspaceTranslationsSource, /return/)
   })
 
   it('connects missing reader workspace dictionary entries to the workspace word lookup endpoint and vocabulary store', () => {
     assert.match(
-      readerPrototypeSource,
+      readerWorkspaceSource,
       /import\s*\{\s*requestPrototypeWordExplanation\s*\}\s*from\s*['"]\.\.\/api\/prototypeWord\.js['"]/,
     )
     assert.match(
-      readerPrototypeSource,
+      readerWorkspaceSource,
       /import\s*\{[\s\S]*isWordSaved[\s\S]*removeVocabularyWord[\s\S]*saveVocabularyWord[\s\S]*\}\s*from\s*['"]\.\.\/utils\/vocabulary\.js['"]/,
     )
-    assert.match(readerPrototypeSource, /mapAiWordDetailToWordPanel/)
-    assert.match(readerPrototypeSource, /selectedAiWordEntry/)
-    assert.match(readerPrototypeSource, /wordCache/)
-    assert.match(readerPrototypeSource, /wordRequests/)
-    assert.match(readerPrototypeSource, /getAiWordDetail/)
-    assert.match(readerPrototypeSource, /requestPrototypeWordExplanation\(word\)/)
-    assert.match(readerPrototypeSource, /prototypeDictionary\[selectedWordKey\.value\]/)
-    assert.match(readerPrototypeSource, /mapAiWordDetailToWordPanel\(\s*selectedAiWordEntry\.value,\s*selectedWordContext\.value\s*\)/)
-    assert.match(readerPrototypeSource, /saveVocabularyWord\(/)
-    assert.match(readerPrototypeSource, /removeVocabularyWord\(/)
-    assert.match(readerPrototypeSource, /isWordSaved\(/)
-    assert.match(readerPrototypeSource, /:is-word-loading="isWordLoading"/)
-    assert.match(readerPrototypeSource, /:word-error-message="wordErrorMessage"/)
-    assert.match(readerPrototypeSource, /@retry-word="retrySelectedPrototypeWord"/)
+    assert.match(readerWorkspaceSource, /mapAiWordDetailToWordPanel/)
+    assert.match(readerWorkspaceSource, /selectedAiWordEntry/)
+    assert.match(readerWorkspaceSource, /wordCache/)
+    assert.match(readerWorkspaceSource, /wordRequests/)
+    assert.match(readerWorkspaceSource, /getAiWordDetail/)
+    assert.match(readerWorkspaceSource, /requestPrototypeWordExplanation\(word\)/)
+    assert.match(readerWorkspaceSource, /prototypeDictionary\[selectedWordKey\.value\]/)
+    assert.match(readerWorkspaceSource, /mapAiWordDetailToWordPanel\(\s*selectedAiWordEntry\.value,\s*selectedWordContext\.value\s*\)/)
+    assert.match(readerWorkspaceSource, /saveVocabularyWord\(/)
+    assert.match(readerWorkspaceSource, /removeVocabularyWord\(/)
+    assert.match(readerWorkspaceSource, /isWordSaved\(/)
+    assert.match(readerWorkspaceSource, /:is-word-loading="isWordLoading"/)
+    assert.match(readerWorkspaceSource, /:word-error-message="wordErrorMessage"/)
+    assert.match(readerWorkspaceSource, /@retry-word="retrySelectedPrototypeWord"/)
 
     assert.match(wordPanelSource, /isWordLoading/)
     assert.match(wordPanelSource, /wordErrorMessage/)
@@ -321,9 +339,9 @@ describe('reader workspace word definition panel contract', () => {
   })
 
   it('replaces the active paragraph with the paragraph that contains the selected word', () => {
-    assert.match(readerPrototypeSource, /const selectedParagraphId = computed/)
-    assert.match(readerPrototypeSource, /selectedWordContext\.value\?\.paragraphId\s*\|\|\s*null/)
-    assert.match(readerPrototypeSource, /:selected-paragraph-id="selectedParagraphId"/)
+    assert.match(readerWorkspaceSource, /const selectedParagraphId = computed/)
+    assert.match(readerWorkspaceSource, /selectedWordContext\.value\?\.paragraphId\s*\|\|\s*null/)
+    assert.match(readerWorkspaceSource, /:selected-paragraph-id="selectedParagraphId"/)
 
     assert.match(readingPaperSource, /selectedParagraphId/)
     assert.match(readingPaperSource, /paragraph\.id\s*===\s*selectedParagraphId/)
@@ -335,12 +353,12 @@ describe('reader workspace word definition panel contract', () => {
   })
 
   it('shows a current chapter vocabulary list before a word is selected', () => {
-    assert.match(readerPrototypeSource, /const chapterVocabulary = computed/)
+    assert.match(readerWorkspaceSource, /const chapterVocabulary = computed/)
     assert.match(
-      readerPrototypeSource,
+      readerWorkspaceSource,
       /getPrototypeChapterVocabulary\(\s*currentChapterContent\.value,\s*prototypeDictionary,\s*addedWordKeys\.value\s*\)/,
     )
-    assert.match(readerPrototypeSource, /:vocabulary="chapterVocabulary"/)
+    assert.match(readerWorkspaceSource, /:vocabulary="chapterVocabulary"/)
 
     assert.match(wordPanelSource, /vocabulary/)
     assert.match(wordPanelSource, /chapter-vocabulary-list/)
@@ -359,19 +377,19 @@ describe('reader workspace word definition panel contract', () => {
   })
 
   it('shows the local wordbook state while saving words through the existing vocabulary store', () => {
-    assert.match(readerPrototypeSource, /const mockWordbook = computed/)
+    assert.match(readerWorkspaceSource, /const mockWordbook = computed/)
     assert.match(
-      readerPrototypeSource,
+      readerWorkspaceSource,
       /getPrototypeMockWordbook\(\s*currentChapterContent\.value,\s*prototypeDictionary,\s*addedWordKeys\.value\s*\)/,
     )
-    assert.match(readerPrototypeSource, /:wordbook="mockWordbook"/)
-    assert.match(readerPrototypeSource, /@remove-word="removeFromMockWordbook"/)
-    assert.match(readerPrototypeSource, /@show-wordbook="clearSelectedWord"/)
-    assert.match(readerPrototypeSource, /function removeFromMockWordbook/)
-    assert.match(readerPrototypeSource, /function clearSelectedWord/)
-    assert.match(readerPrototypeSource, /saveVocabularyWord\(/)
-    assert.match(readerPrototypeSource, /removeVocabularyWord\(/)
-    assert.doesNotMatch(readerPrototypeSource, /localStorage/)
+    assert.match(readerWorkspaceSource, /:wordbook="mockWordbook"/)
+    assert.match(readerWorkspaceSource, /@remove-word="removeFromMockWordbook"/)
+    assert.match(readerWorkspaceSource, /@show-wordbook="clearSelectedWord"/)
+    assert.match(readerWorkspaceSource, /function removeFromMockWordbook/)
+    assert.match(readerWorkspaceSource, /function clearSelectedWord/)
+    assert.match(readerWorkspaceSource, /saveVocabularyWord\(/)
+    assert.match(readerWorkspaceSource, /removeVocabularyWord\(/)
+    assert.doesNotMatch(readerWorkspaceSource, /localStorage/)
 
     assert.match(wordPanelSource, /wordbook/)
     assert.match(wordPanelSource, /本地生词本/)
@@ -400,9 +418,9 @@ describe('reader workspace word definition panel contract', () => {
     assert.doesNotMatch(wordPanelSource, /word\.tags/)
     assert.doesNotMatch(wordPanelSource, /word\.meanings/)
 
-    assert.doesNotMatch(readerPrototypeSource, /P01|P02|P03/)
-    assert.doesNotMatch(readerPrototypeSource, /当前句|难度 B1|2 个生词|长句|收藏段|收束段|复习 1 词/)
-    assert.doesNotMatch(readerPrototypeSource, /阅读词汇|高频词|副词/)
+    assert.doesNotMatch(readerWorkspaceSource, /P01|P02|P03/)
+    assert.doesNotMatch(readerWorkspaceSource, /当前句|难度 B1|2 个生词|长句|收藏段|收束段|复习 1 词/)
+    assert.doesNotMatch(readerWorkspaceSource, /阅读词汇|高频词|副词/)
 
     assert.doesNotMatch(prototypeStyleSource, /\.reading-status/)
     assert.doesNotMatch(prototypeStyleSource, /\.paragraph-meta/)
@@ -411,10 +429,10 @@ describe('reader workspace word definition panel contract', () => {
   })
 
   it('does not render the obsolete floating notes bar in the reader workspace', () => {
-    assert.doesNotMatch(readerPrototypeSource, /PrototypeFloatingNotes/)
-    assert.doesNotMatch(readerPrototypeSource, /addMockNote/)
-    assert.doesNotMatch(readerPrototypeSource, /const notes/)
-    assert.doesNotMatch(readerPrototypeSource, /nextNoteId/)
+    assert.doesNotMatch(readerWorkspaceSource, /PrototypeFloatingNotes/)
+    assert.doesNotMatch(readerWorkspaceSource, /addMockNote/)
+    assert.doesNotMatch(readerWorkspaceSource, /const notes/)
+    assert.doesNotMatch(readerWorkspaceSource, /nextNoteId/)
 
     assert.doesNotMatch(prototypeStyleSource, /\.floating-notes/)
     assert.doesNotMatch(prototypeStyleSource, /\.notes-tabs/)
@@ -445,8 +463,8 @@ describe('reader workspace word definition panel contract', () => {
     assert.doesNotMatch(topbarSource, /compact/)
     assert.doesNotMatch(topbarSource, /笔记/)
     assert.doesNotMatch(topbarSource, /toggle-note-panel/)
-    assert.doesNotMatch(readerPrototypeSource, /showPrototypeNoteHint/)
-    assert.doesNotMatch(readerPrototypeSource, /noteToolTouched/)
+    assert.doesNotMatch(readerWorkspaceSource, /showPrototypeNoteHint/)
+    assert.doesNotMatch(readerWorkspaceSource, /noteToolTouched/)
 
     assert.doesNotMatch(topbarSource, /toolstrip-group nav-group/)
     assert.doesNotMatch(topbarSource, /段落导航/)
@@ -456,13 +474,13 @@ describe('reader workspace word definition panel contract', () => {
     assert.doesNotMatch(topbarSource, /go-next-paragraph/)
     assert.doesNotMatch(topbarSource, /canGoPreviousParagraph/)
     assert.doesNotMatch(topbarSource, /canGoNextParagraph/)
-    assert.doesNotMatch(readerPrototypeSource, /goToPreviousParagraph/)
-    assert.doesNotMatch(readerPrototypeSource, /goToNextParagraph/)
-    assert.doesNotMatch(readerPrototypeSource, /activeParagraphId/)
-    assert.doesNotMatch(readerPrototypeSource, /displayParagraphs\s*=\s*computed\(\(\)\s*=>\s*activeParagraph/)
-    assert.doesNotMatch(readerPrototypeSource, /activeParagraphIndex/)
-    assert.doesNotMatch(readerPrototypeSource, /canGoPreviousParagraph/)
-    assert.doesNotMatch(readerPrototypeSource, /canGoNextParagraph/)
+    assert.doesNotMatch(readerWorkspaceSource, /goToPreviousParagraph/)
+    assert.doesNotMatch(readerWorkspaceSource, /goToNextParagraph/)
+    assert.doesNotMatch(readerWorkspaceSource, /activeParagraphId/)
+    assert.doesNotMatch(readerWorkspaceSource, /displayParagraphs\s*=\s*computed\(\(\)\s*=>\s*activeParagraph/)
+    assert.doesNotMatch(readerWorkspaceSource, /activeParagraphIndex/)
+    assert.doesNotMatch(readerWorkspaceSource, /canGoPreviousParagraph/)
+    assert.doesNotMatch(readerWorkspaceSource, /canGoNextParagraph/)
   })
 
   it('removes unused top-right action buttons from the reader workspace toolbar', () => {
@@ -545,40 +563,40 @@ describe('reader workspace word definition panel contract', () => {
   })
 
   it('wires reader workspace highlighter state through the page', () => {
-    assert.match(readerPrototypeSource, /prototypeHighlightColors/)
-    assert.match(readerPrototypeSource, /isHighlightMode/)
-    assert.match(readerPrototypeSource, /activeHighlightColorId/)
-    assert.match(readerPrototypeSource, /isHighlightClearMode/)
-    assert.match(readerPrototypeSource, /sentenceHighlightsByChapter/)
-    assert.match(readerPrototypeSource, /currentChapterHighlights/)
-    assert.match(readerPrototypeSource, /getDefaultPrototypeHighlights/)
-    assert.match(readerPrototypeSource, /getPrototypeChapterHighlights/)
-    assert.match(readerPrototypeSource, /togglePrototypeSentenceHighlight/)
-    assert.match(readerPrototypeSource, /removePrototypeSentenceHighlight/)
-    assert.match(readerPrototypeSource, /:highlight-colors="prototypeHighlightColors"/)
-    assert.match(readerPrototypeSource, /:is-highlight-mode="isHighlightMode"/)
-    assert.match(readerPrototypeSource, /:active-highlight-color-id="activeHighlightColorId"/)
-    assert.match(readerPrototypeSource, /:is-highlight-clear-mode="isHighlightClearMode"/)
-    assert.match(readerPrototypeSource, /:sentence-highlights="currentChapterHighlights"/)
-    assert.match(readerPrototypeSource, /@toggle-highlight-mode="toggleHighlightMode"/)
-    assert.match(readerPrototypeSource, /@select-highlight-color="selectHighlightColor"/)
-    assert.match(readerPrototypeSource, /@select-highlight-clear="selectHighlightClear"/)
-    assert.match(readerPrototypeSource, /@toggle-sentence-highlight="toggleSentenceHighlight"/)
-    assert.doesNotMatch(readerPrototypeSource, /localStorage/)
+    assert.match(readerWorkspaceSource, /prototypeHighlightColors/)
+    assert.match(readerWorkspaceSource, /isHighlightMode/)
+    assert.match(readerWorkspaceSource, /activeHighlightColorId/)
+    assert.match(readerWorkspaceSource, /isHighlightClearMode/)
+    assert.match(readerWorkspaceSource, /sentenceHighlightsByChapter/)
+    assert.match(readerWorkspaceSource, /currentChapterHighlights/)
+    assert.match(readerWorkspaceSource, /getDefaultPrototypeHighlights/)
+    assert.match(readerWorkspaceSource, /getPrototypeChapterHighlights/)
+    assert.match(readerWorkspaceSource, /togglePrototypeSentenceHighlight/)
+    assert.match(readerWorkspaceSource, /removePrototypeSentenceHighlight/)
+    assert.match(readerWorkspaceSource, /:highlight-colors="prototypeHighlightColors"/)
+    assert.match(readerWorkspaceSource, /:is-highlight-mode="isHighlightMode"/)
+    assert.match(readerWorkspaceSource, /:active-highlight-color-id="activeHighlightColorId"/)
+    assert.match(readerWorkspaceSource, /:is-highlight-clear-mode="isHighlightClearMode"/)
+    assert.match(readerWorkspaceSource, /:sentence-highlights="currentChapterHighlights"/)
+    assert.match(readerWorkspaceSource, /@toggle-highlight-mode="toggleHighlightMode"/)
+    assert.match(readerWorkspaceSource, /@select-highlight-color="selectHighlightColor"/)
+    assert.match(readerWorkspaceSource, /@select-highlight-clear="selectHighlightClear"/)
+    assert.match(readerWorkspaceSource, /@toggle-sentence-highlight="toggleSentenceHighlight"/)
+    assert.doesNotMatch(readerWorkspaceSource, /localStorage/)
   })
 
   it('renders an empty book state instead of falling back to stale chapter content', () => {
-    assert.match(readerPrototypeSource, /findPrototypeBookChapterContent/)
+    assert.match(readerWorkspaceSource, /findPrototypeBookChapterContent/)
     assert.match(
-      readerPrototypeSource,
+      readerWorkspaceSource,
       /findPrototypeBookChapterContent\([\s\S]*chapterContentById\.value,[\s\S]*currentBook\.value,[\s\S]*activeChapterId\.value,[\s\S]*fallbackChapterId,[\s\S]*\)/,
     )
-    assert.match(readerPrototypeSource, /v-else-if="currentChapter"/)
-    assert.match(readerPrototypeSource, /prototype-empty-book/)
-    assert.match(readerPrototypeSource, /getPrototypeChapters\(currentBook\.value\)/)
+    assert.match(readerWorkspaceSource, /v-else-if="currentChapter"/)
+    assert.match(readerWorkspaceSource, /prototype-empty-book/)
+    assert.match(readerWorkspaceSource, /getPrototypeChapters\(currentBook\.value\)/)
     assert.match(prototypeStyleSource, /\.prototype-empty-book/)
     assert.doesNotMatch(
-      readerPrototypeSource,
+      readerWorkspaceSource,
       /findPrototypeChapterContent\(\s*chapterContentById\.value,\s*activeChapterId\.value,\s*fallbackChapterId\s*\)/,
     )
     assert.match(topbarSource, /v-if="chapter"/)
@@ -587,74 +605,74 @@ describe('reader workspace word definition panel contract', () => {
 
   it('wires pasted article mode into the reader workspace instead of the legacy reader route', () => {
     assert.ok(existsSync(pasteEditorUrl), 'paste editor should render inside the reader workspace area')
-    assert.match(readerPrototypeSource, /import\s+ReaderWorkspacePasteEditor\s+from\s+['"]\.\.\/components\/reader-workspace\/ReaderWorkspacePasteEditor\.vue['"]/)
-    assert.match(readerPrototypeSource, /readClipboardText/)
-    assert.match(readerPrototypeSource, /createPastedPrototypeChapterContent/)
-    assert.match(readerPrototypeSource, /pastedChapterContent/)
-    assert.match(readerPrototypeSource, /isPastedArticleActive/)
-    assert.match(readerPrototypeSource, /sidebarActiveChapterId/)
-    assert.match(readerPrototypeSource, /:active-chapter-id="sidebarActiveChapterId"/)
-    assert.match(readerPrototypeSource, /isPasteEditorOpen/)
-    assert.match(readerPrototypeSource, /pasteDraft/)
-    assert.match(readerPrototypeSource, /openPasteEditor/)
-    assert.match(readerPrototypeSource, /closePasteEditor/)
-    assert.match(readerPrototypeSource, /submitPastedArticle/)
-    assert.match(readerPrototypeSource, /readClipboardIntoDraft/)
-    assert.match(readerPrototypeSource, /<ReaderWorkspacePasteEditor/)
-    assert.match(readerPrototypeSource, /v-else-if="isPasteEditorOpen"/)
-    assert.match(readerPrototypeSource, /v-model="pasteDraft"/)
-    assert.match(readerPrototypeSource, /@submit="submitPastedArticle"/)
-    assert.match(readerPrototypeSource, /@cancel="closePasteEditor"/)
-    assert.match(readerPrototypeSource, /@read-clipboard="readClipboardIntoDraft"/)
-    assert.match(readerPrototypeSource, /@paste-article="openPasteEditor"/)
-    assert.doesNotMatch(readerPrototypeSource, /@paste-article="pastePrototypeArticle"/)
-    assert.match(readerPrototypeSource, /const chapters = computed\(\(\) => getPrototypeChapters\(currentBook\.value\)\)/)
-    assert.doesNotMatch(readerPrototypeSource, /const baseChapters = getPrototypeChapters/)
-    assert.doesNotMatch(readerPrototypeSource, /\.\.\.baseChapters/)
-    assert.doesNotMatch(readerPrototypeSource, /activeChapterId\.value\s*=\s*pastedChapter\.id/)
-    assert.match(readerPrototypeSource, /isPastedArticleActive\.value\s*=\s*true/)
-    assert.match(readerPrototypeSource, /isPastedArticleActive\.value\s*=\s*false/)
-    assert.match(readerPrototypeSource, /currentChapterContent = computed/)
-    assert.match(readerPrototypeSource, /pastedChapterContent\.value/)
-    assert.doesNotMatch(readerPrototypeSource, /router\.push/)
-    assert.doesNotMatch(readerPrototypeSource, /path:\s*['"]\/reader['"]/)
-    assert.doesNotMatch(readerPrototypeSource, /to=['"]\/reader['"]/)
-    assert.doesNotMatch(readerPrototypeSource, /localStorage/)
+    assert.match(readerWorkspaceSource, /import\s+ReaderWorkspacePasteEditor\s+from\s+['"]\.\.\/components\/reader-workspace\/ReaderWorkspacePasteEditor\.vue['"]/)
+    assert.match(readerWorkspaceSource, /readClipboardText/)
+    assert.match(readerWorkspaceSource, /createPastedPrototypeChapterContent/)
+    assert.match(readerWorkspaceSource, /pastedChapterContent/)
+    assert.match(readerWorkspaceSource, /isPastedArticleActive/)
+    assert.match(readerWorkspaceSource, /sidebarActiveChapterId/)
+    assert.match(readerWorkspaceSource, /:active-chapter-id="sidebarActiveChapterId"/)
+    assert.match(readerWorkspaceSource, /isPasteEditorOpen/)
+    assert.match(readerWorkspaceSource, /pasteDraft/)
+    assert.match(readerWorkspaceSource, /openPasteEditor/)
+    assert.match(readerWorkspaceSource, /closePasteEditor/)
+    assert.match(readerWorkspaceSource, /submitPastedArticle/)
+    assert.match(readerWorkspaceSource, /readClipboardIntoDraft/)
+    assert.match(readerWorkspaceSource, /<ReaderWorkspacePasteEditor/)
+    assert.match(readerWorkspaceSource, /v-else-if="isPasteEditorOpen"/)
+    assert.match(readerWorkspaceSource, /v-model="pasteDraft"/)
+    assert.match(readerWorkspaceSource, /@submit="submitPastedArticle"/)
+    assert.match(readerWorkspaceSource, /@cancel="closePasteEditor"/)
+    assert.match(readerWorkspaceSource, /@read-clipboard="readClipboardIntoDraft"/)
+    assert.match(readerWorkspaceSource, /@paste-article="openPasteEditor"/)
+    assert.doesNotMatch(readerWorkspaceSource, /@paste-article="pastePrototypeArticle"/)
+    assert.match(readerWorkspaceSource, /const chapters = computed\(\(\) => getPrototypeChapters\(currentBook\.value\)\)/)
+    assert.doesNotMatch(readerWorkspaceSource, /const baseChapters = getPrototypeChapters/)
+    assert.doesNotMatch(readerWorkspaceSource, /\.\.\.baseChapters/)
+    assert.doesNotMatch(readerWorkspaceSource, /activeChapterId\.value\s*=\s*pastedChapter\.id/)
+    assert.match(readerWorkspaceSource, /isPastedArticleActive\.value\s*=\s*true/)
+    assert.match(readerWorkspaceSource, /isPastedArticleActive\.value\s*=\s*false/)
+    assert.match(readerWorkspaceSource, /currentChapterContent = computed/)
+    assert.match(readerWorkspaceSource, /pastedChapterContent\.value/)
+    assert.doesNotMatch(readerWorkspaceSource, /router\.push/)
+    assert.doesNotMatch(readerWorkspaceSource, /path:\s*['"]\/reader['"]/)
+    assert.doesNotMatch(readerWorkspaceSource, /to=['"]\/reader['"]/)
+    assert.doesNotMatch(readerWorkspaceSource, /localStorage/)
   })
 
   it('wires PDF and EPUB file imports into the real reader workspace bookshelf', () => {
     assert.ok(existsSync(bookImportPanelUrl), 'book import panel should exist')
-    assert.match(readerPrototypeSource, /import\s+ReaderWorkspaceBookImportPanel\s+from\s+['"]\.\.\/components\/reader-workspace\/ReaderWorkspaceBookImportPanel\.vue['"]/)
-    assert.match(readerPrototypeSource, /parsePrototypeBookFile/)
-    assert.match(readerPrototypeSource, /createImportedPrototypeBookFromText/)
-    assert.match(readerPrototypeSource, /loadImportedPrototypeBooks/)
-    assert.match(readerPrototypeSource, /appendImportedPrototypeBook/)
-    assert.match(readerPrototypeSource, /removeImportedPrototypeBook/)
-    assert.match(readerPrototypeSource, /getImportedPrototypeChapterContentById/)
-    assert.match(readerPrototypeSource, /const importedBooks = ref\(\[\]\)/)
-    assert.match(readerPrototypeSource, /loadImportedBooksIntoShelf\(\)/)
-    assert.match(readerPrototypeSource, /async function loadImportedBooksIntoShelf/)
-    assert.match(readerPrototypeSource, /await loadImportedPrototypeBooks\(\)/)
-    assert.match(readerPrototypeSource, /const books = computed\(\(\) => \[\.\.\.importedBooks\.value,\s*\.\.\.prototypeBooks\]\)/)
-    assert.match(readerPrototypeSource, /:books="books"/)
-    assert.match(readerPrototypeSource, /@select-book="selectBook"/)
-    assert.match(readerPrototypeSource, /@import-book="openBookImport"/)
-    assert.match(readerPrototypeSource, /@delete-book="deleteImportedBook"/)
-    assert.match(readerPrototypeSource, /async function deleteImportedBook/)
-    assert.match(readerPrototypeSource, /await removeImportedPrototypeBook\(bookId\)/)
-    assert.match(readerPrototypeSource, /<ReaderWorkspaceBookImportPanel/)
-    assert.match(readerPrototypeSource, /v-if="isBookImportOpen"/)
-    assert.match(readerPrototypeSource, /@select-file="selectImportFile"/)
-    assert.match(readerPrototypeSource, /@submit="importSelectedBookFile"/)
-    assert.match(readerPrototypeSource, /@cancel="closeBookImport"/)
-    assert.match(readerPrototypeSource, /await appendImportedPrototypeBook\(importedBook\)/)
-    assert.match(readerPrototypeSource, /activateImportedBook\(importedBook,\s*result\.books\)/)
-    assert.match(readerPrototypeSource, /activateTemporaryImportedBook\(importedBook,\s*result\.books\)/)
-    assert.match(readerPrototypeSource, /已临时导入，但无法保存到本地书架/)
-    assert.match(readerPrototypeSource, /activeBookId\.value\s*=\s*importedBook\.id/)
-    assert.match(readerPrototypeSource, /activeChapterId\.value\s*=\s*importedBook\.chapters\[0\]\?\.id/)
-    assert.doesNotMatch(readerPrototypeSource, /难度/)
-    assert.doesNotMatch(readerPrototypeSource, /备注/)
+    assert.match(readerWorkspaceSource, /import\s+ReaderWorkspaceBookImportPanel\s+from\s+['"]\.\.\/components\/reader-workspace\/ReaderWorkspaceBookImportPanel\.vue['"]/)
+    assert.match(readerWorkspaceSource, /parsePrototypeBookFile/)
+    assert.match(readerWorkspaceSource, /createImportedPrototypeBookFromText/)
+    assert.match(readerWorkspaceSource, /loadImportedPrototypeBooks/)
+    assert.match(readerWorkspaceSource, /appendImportedPrototypeBook/)
+    assert.match(readerWorkspaceSource, /removeImportedPrototypeBook/)
+    assert.match(readerWorkspaceSource, /getImportedPrototypeChapterContentById/)
+    assert.match(readerWorkspaceSource, /const importedBooks = ref\(\[\]\)/)
+    assert.match(readerWorkspaceSource, /loadImportedBooksIntoShelf\(\)/)
+    assert.match(readerWorkspaceSource, /async function loadImportedBooksIntoShelf/)
+    assert.match(readerWorkspaceSource, /await loadImportedPrototypeBooks\(\)/)
+    assert.match(readerWorkspaceSource, /const books = computed\(\(\) => \[\.\.\.importedBooks\.value,\s*\.\.\.prototypeBooks\]\)/)
+    assert.match(readerWorkspaceSource, /:books="books"/)
+    assert.match(readerWorkspaceSource, /@select-book="selectBook"/)
+    assert.match(readerWorkspaceSource, /@import-book="openBookImport"/)
+    assert.match(readerWorkspaceSource, /@delete-book="deleteImportedBook"/)
+    assert.match(readerWorkspaceSource, /async function deleteImportedBook/)
+    assert.match(readerWorkspaceSource, /await removeImportedPrototypeBook\(bookId\)/)
+    assert.match(readerWorkspaceSource, /<ReaderWorkspaceBookImportPanel/)
+    assert.match(readerWorkspaceSource, /v-if="isBookImportOpen"/)
+    assert.match(readerWorkspaceSource, /@select-file="selectImportFile"/)
+    assert.match(readerWorkspaceSource, /@submit="importSelectedBookFile"/)
+    assert.match(readerWorkspaceSource, /@cancel="closeBookImport"/)
+    assert.match(readerWorkspaceSource, /await appendImportedPrototypeBook\(importedBook\)/)
+    assert.match(readerWorkspaceSource, /activateImportedBook\(importedBook,\s*result\.books\)/)
+    assert.match(readerWorkspaceSource, /activateTemporaryImportedBook\(importedBook,\s*result\.books\)/)
+    assert.match(readerWorkspaceSource, /已临时导入，但无法保存到本地书架/)
+    assert.match(readerWorkspaceSource, /activeBookId\.value\s*=\s*importedBook\.id/)
+    assert.match(readerWorkspaceSource, /activeChapterId\.value\s*=\s*importedBook\.chapters\[0\]\?\.id/)
+    assert.doesNotMatch(readerWorkspaceSource, /难度/)
+    assert.doesNotMatch(readerWorkspaceSource, /备注/)
   })
 
   it('renders a bookshelf file import action and a PDF EPUB chooser', () => {
@@ -695,8 +713,8 @@ describe('reader workspace word definition panel contract', () => {
     assert.match(topbarSource, /paste-article/)
     assert.match(topbarSource, /prototype-paste-message/)
     assert.match(topbarSource, /defineEmits\(\[[\s\S]*'paste-article'[\s\S]*\]\)/)
-    assert.match(readerPrototypeSource, /:paste-message="pasteArticleMessage"/)
-    assert.match(readerPrototypeSource, /:paste-message-type="pasteArticleMessageType"/)
+    assert.match(readerWorkspaceSource, /:paste-message="pasteArticleMessage"/)
+    assert.match(readerWorkspaceSource, /:paste-message-type="pasteArticleMessageType"/)
     assert.match(prototypeStyleSource, /\.prototype-paste-message/)
   })
 
