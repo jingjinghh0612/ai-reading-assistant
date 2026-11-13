@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Home from '../pages/Home.vue'
+import HomeLegacy from '../pages/HomeLegacy.vue'
 import ReaderLegacy from '../pages/ReaderLegacy.vue'
 import ReaderWorkspace from '../pages/ReaderWorkspace.vue'
 import Review from '../pages/Review.vue'
@@ -8,12 +9,16 @@ import Vocabulary from '../pages/Vocabulary.vue'
 const routes = [
   {
     path: '/',
-    redirect: '/reader',
+    name: 'home',
+    component: Home,
+    meta: {
+      standalone: true,
+    },
   },
   {
     path: '/home',
-    name: 'home',
-    component: Home,
+    name: 'home-legacy',
+    component: HomeLegacy,
   },
   {
     path: '/reader',

@@ -129,7 +129,7 @@
 
     <div v-else class="card empty-state">
       <p>{{ t('common.emptyArticle') }}</p>
-      <RouterLink class="secondary-link" to="/">{{ t('common.goHome') }}</RouterLink>
+      <RouterLink class="secondary-link" :to="{ name: 'home-legacy' }">{{ t('common.goHome') }}</RouterLink>
     </div>
   </section>
 </template>
