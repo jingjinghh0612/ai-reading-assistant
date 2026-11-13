@@ -1,5 +1,5 @@
 <template>
-  <section class="prototype-paste-editor" aria-label="粘贴文章">
+  <section class="workspace-paste-editor" aria-label="粘贴文章">
     <header class="paste-editor-header">
       <p>Paste Article</p>
       <h1>粘贴文章</h1>

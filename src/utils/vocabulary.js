@@ -346,6 +346,7 @@ export function recordVocabularyReview(normalizedWord, outcome, now = new Date()
     const forgot = outcome === 'forgot'
     const mastered = outcome === 'mastered'
     const familiar = outcome === 'familiar'
+    // 按本次结果和当前阶段计算间隔，再决定下次复习时所处的阶段。
     const intervalDays = forgot || mastered
       ? REVIEW_INTERVAL_DAYS[forgot ? 0 : REVIEW_INTERVAL_DAYS.length - 1]
       : REVIEW_INTERVAL_DAYS[Math.min(item.reviewStage, REVIEW_INTERVAL_DAYS.length - 1)]

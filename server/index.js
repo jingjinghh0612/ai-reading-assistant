@@ -3,7 +3,7 @@ import express from 'express'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { explainWord, summarizeText, translateSentence } from './services/aiService.js'
-import { lookupPrototypeWord } from './services/prototypeWordService.js'
+import { lookupWord } from './services/wordLookupService.js'
 import { setupProxy } from './setupProxy.js'
 
 const app = express()
@@ -66,7 +66,8 @@ app.post('/api/word-explain', async (request, response) => {
   }
 })
 
-app.post('/api/prototype-word-explain', async (request, response) => {
+// 新旧查词地址共用同一处理函数，旧客户端可继续调用原地址。
+app.post(['/api/word-lookup', '/api/prototype-word-explain'], async (request, response) => {
   const word = request.body?.word?.trim()
 
   if (!word) {
@@ -77,10 +78,10 @@ app.post('/api/prototype-word-explain', async (request, response) => {
   }
 
   try {
-    const detail = await lookupPrototypeWord(word)
+    const detail = await lookupWord(word)
     response.json(detail)
   } catch (error) {
-    sendApiError(response, error, 'Prototype word explanation failed.')
+    sendApiError(response, error, 'Word lookup failed.')
   }
 })
 

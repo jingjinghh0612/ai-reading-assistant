@@ -199,7 +199,7 @@ const wordCache = Object.create(null)
 const wordRequests = Object.create(null)
 let currentWordRequestId = 0
 
-// These caches only live while Reader.vue is open.
+// These caches only live while ReaderLegacy.vue is open.
 // They keep repeated clicks from calling the AI endpoint again.
 const selectedSentence = computed(() => {
   if (selectedIndex.value < 0) {

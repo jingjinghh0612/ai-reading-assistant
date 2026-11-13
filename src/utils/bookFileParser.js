@@ -1,6 +1,6 @@
 import JSZip from 'jszip'
 
-export function getPrototypeImportFileType(file) {
+export function getImportFileType(file) {
   const fileName = String(file?.name || '').toLowerCase()
   const mimeType = String(file?.type || '').toLowerCase()
 
@@ -15,7 +15,7 @@ export function getPrototypeImportFileType(file) {
   return ''
 }
 
-export function getPrototypeBookTitleFromFileName(fileName) {
+export function getBookTitleFromFileName(fileName) {
   return String(fileName || 'Imported Book')
     .replace(/\.[^.]+$/, '')
     .replace(/[-_.]+/g, ' ')
@@ -23,8 +23,8 @@ export function getPrototypeBookTitleFromFileName(fileName) {
     .trim() || 'Imported Book'
 }
 
-export async function parsePrototypeBookFile(file) {
-  const sourceType = getPrototypeImportFileType(file)
+export async function parseBookFile(file) {
+  const sourceType = getImportFileType(file)
 
   if (!sourceType) {
     return {
@@ -49,7 +49,7 @@ export async function parsePrototypeBookFile(file) {
 
   return {
     ok: true,
-    title: parsed.title || getPrototypeBookTitleFromFileName(file.name),
+    title: parsed.title || getBookTitleFromFileName(file.name),
     text: parsed.text,
     chapters: parsed.chapters || [],
     sourceType,
@@ -111,6 +111,7 @@ export async function extractTextFromEpubArrayBuffer(arrayBuffer) {
   const spine = parseSpine(opfXml)
   const chapters = []
 
+  // EPUB 的 spine 定义阅读顺序，manifest 提供各章节文件的位置。
   for (const itemRef of spine) {
     const manifestItem = manifest.get(itemRef.idref)
 

@@ -3,9 +3,9 @@ import { describe, it } from 'node:test'
 import JSZip from 'jszip'
 import {
   extractTextFromEpubArrayBuffer,
-  getPrototypeBookTitleFromFileName,
-  getPrototypeImportFileType,
-} from './prototypeFileParser.js'
+  getBookTitleFromFileName,
+  getImportFileType,
+} from './bookFileParser.js'
 
 async function createTinyEpub() {
   const zip = new JSZip()
@@ -48,16 +48,16 @@ async function createTinyEpub() {
   return zip.generateAsync({ type: 'arraybuffer' })
 }
 
-describe('prototype file parser utilities', () => {
+describe('book file parser utilities', () => {
   it('detects supported import file types', () => {
-    assert.equal(getPrototypeImportFileType({ name: 'book.epub', type: 'application/epub+zip' }), 'epub')
-    assert.equal(getPrototypeImportFileType({ name: 'book.pdf', type: 'application/pdf' }), 'pdf')
-    assert.equal(getPrototypeImportFileType({ name: 'book.txt', type: 'text/plain' }), '')
+    assert.equal(getImportFileType({ name: 'book.epub', type: 'application/epub+zip' }), 'epub')
+    assert.equal(getImportFileType({ name: 'book.pdf', type: 'application/pdf' }), 'pdf')
+    assert.equal(getImportFileType({ name: 'book.txt', type: 'text/plain' }), '')
   })
 
   it('uses the filename as a default book title', () => {
-    assert.equal(getPrototypeBookTitleFromFileName('The-Book.epub'), 'The Book')
-    assert.equal(getPrototypeBookTitleFromFileName('report.final.pdf'), 'report final')
+    assert.equal(getBookTitleFromFileName('The-Book.epub'), 'The Book')
+    assert.equal(getBookTitleFromFileName('report.final.pdf'), 'report final')
   })
 
   it('extracts EPUB title and spine ordered chapter text', async () => {

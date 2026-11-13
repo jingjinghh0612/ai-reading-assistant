@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { lookupPrototypeWord } from './prototypeWordService.js'
+import { lookupWord } from './wordLookupService.js'
 
-describe('prototype word lookup service', () => {
+describe('word lookup service', () => {
   it('uses a local dictionary result before external dictionary and AI', async () => {
     let externalCallCount = 0
     let aiCallCount = 0
 
-    const detail = await lookupPrototypeWord('readers', {
+    const detail = await lookupWord('readers', {
       cache: new Map(),
       localLookup: () => ({
         word: 'readers',
@@ -49,7 +49,7 @@ describe('prototype word lookup service', () => {
   it('uses an external dictionary result before calling AI', async () => {
     let aiCallCount = 0
 
-    const detail = await lookupPrototypeWord('readers', {
+    const detail = await lookupWord('readers', {
       cache: new Map(),
       localLookup: () => null,
       externalLookup: async () => ({
@@ -83,7 +83,7 @@ describe('prototype word lookup service', () => {
   it('falls back to AI when the external dictionary has no translation', async () => {
     let aiCallCount = 0
 
-    const detail = await lookupPrototypeWord('observatory', {
+    const detail = await lookupWord('observatory', {
       cache: new Map(),
       localLookup: () => null,
       externalLookup: async () => ({
@@ -116,7 +116,7 @@ describe('prototype word lookup service', () => {
   })
 
   it('returns an empty fallback detail when every lookup source fails', async () => {
-    const detail = await lookupPrototypeWord('each', {
+    const detail = await lookupWord('each', {
       cache: new Map(),
       localLookup: () => null,
       externalLookup: async () => {
@@ -142,7 +142,7 @@ describe('prototype word lookup service', () => {
     let externalCallCount = 0
     let aiCallCount = 0
 
-    const detail = await lookupPrototypeWord('rareword', {
+    const detail = await lookupWord('rareword', {
       cache: new Map(),
       pendingRequests: new Map(),
       enableExternalDictionary: false,

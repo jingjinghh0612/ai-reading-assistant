@@ -46,7 +46,8 @@ ai-reading-app-github-ready
 │  ├─ index.js                 # Express 后端入口，提供 API 和静态文件服务
 │  ├─ setupProxy.js             # 可选代理配置，用于 Gemini 请求走本地代理
 │  └─ services
-│     ├─ aiService.js           # Gemini 调用、超时、重试、缓存和 mock fallback
+│     ├─ aiService.js           # AI 请求、超时、重试、缓存和模拟结果
+│     ├─ wordLookupService.js   # 本地词库、外部词典和 AI 查词
 │     └─ prompts.js             # 翻译、单词解释、摘要 prompt
 ├─ src
 │  ├─ api                       # 前端 API 请求封装
@@ -54,21 +55,21 @@ ai-reading-app-github-ready
 │  │  ├─ SentenceViewer.vue     # 旧版阅读页句子展示、翻译卡、单词卡
 │  │  └─ reader-workspace       # 新版阅读页顶部栏、侧边栏、正文和右侧面板
 │  ├─ data
-│  │  ├─ readerPrototypeData.js       # 新版阅读页本地书籍、章节、词典数据
-│  │  └─ readerPrototypeSelectors.js  # 新版阅读页选择器和高亮 helper
+│  │  ├─ builtInReaderData.js         # 内置书籍、章节和词条
+│  │  └─ readerWorkspaceSelectors.js # 章节、词汇和高亮数据处理
 │  ├─ pages
 │  │  ├─ Home.vue
-│  │  ├─ Reader.vue                  # 旧版阅读页，路由 /reader-legacy
+│  │  ├─ ReaderLegacy.vue            # 旧版阅读页，路由 /reader-legacy
 │  │  ├─ ReaderWorkspace.vue         # 新版阅读工作台正式入口，路由 /reader
-│  │  ├─ ReaderPrototype.vue         # 旧原型 URL 兼容入口，路由 /reader-prototype
 │  │  ├─ Review.vue
 │  │  └─ Vocabulary.vue
 │  ├─ router
 │  │  └─ index.js
-│  ├─ utils                     # 句子切分、导航、字号、生词、历史、单词卡工具
+│  ├─ utils                     # 书籍导入、文件解析、句子切分、生词和阅读历史
 │  ├─ App.vue
 │  ├─ main.js
-│  └─ style.css
+│  ├─ style.css
+│  └─ reader-workspace.css      # 阅读工作台样式
 ├─ .env.example
 ├─ package.json
 └─ vite.config.js
@@ -171,8 +172,11 @@ GEMINI_PROXY_URL=http://127.0.0.1:7890
 GET  /api/health
 POST /api/translate
 POST /api/word-explain
+POST /api/word-lookup
 POST /api/summarize
 ```
+
+工作台使用 `/api/word-lookup` 查词。`/api/prototype-word-explain` 是同一查词服务的兼容地址，旧版阅读页继续使用 `/api/word-explain`。
 
 前端只请求本项目后端接口，不直接暴露或读取 `DEEPSEEK_API_KEY`、`GEMINI_API_KEY`。
 

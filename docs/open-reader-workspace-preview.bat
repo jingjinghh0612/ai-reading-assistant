@@ -3,9 +3,9 @@ setlocal
 
 cd /d "%~dp0\.."
 
-set "PREVIEW_URL=http://127.0.0.1:5173/reader-prototype"
+set "PREVIEW_URL=http://127.0.0.1:5173/reader"
 
-echo Opening AI Reading reader prototype preview...
+echo Opening AI Reading workspace...
 echo %PREVIEW_URL%
 echo.
 

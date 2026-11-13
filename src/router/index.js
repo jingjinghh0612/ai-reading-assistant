@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Home from '../pages/Home.vue'
-import ReaderLegacy from '../pages/Reader.vue'
-import ReaderPrototype from '../pages/ReaderPrototype.vue'
+import ReaderLegacy from '../pages/ReaderLegacy.vue'
 import ReaderWorkspace from '../pages/ReaderWorkspace.vue'
 import Review from '../pages/Review.vue'
 import Vocabulary from '../pages/Vocabulary.vue'
@@ -25,9 +24,10 @@ const routes = [
     },
   },
   {
+    // 保留旧书签和命名路由，直接加载正式阅读工作台。
     path: '/reader-prototype',
     name: 'reader-prototype',
-    component: ReaderPrototype,
+    component: ReaderWorkspace,
     meta: {
       standalone: true,
     },

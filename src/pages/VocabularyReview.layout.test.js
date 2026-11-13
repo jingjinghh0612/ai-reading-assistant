@@ -4,7 +4,7 @@ import { describe, it } from 'node:test'
 
 const vocabularySource = readFileSync(new URL('./Vocabulary.vue', import.meta.url), 'utf8')
 const reviewSource = readFileSync(new URL('./Review.vue', import.meta.url), 'utf8')
-const readerSource = readFileSync(new URL('./Reader.vue', import.meta.url), 'utf8')
+const readerSource = readFileSync(new URL('./ReaderLegacy.vue', import.meta.url), 'utf8')
 const styleSource = readFileSync(new URL('../style.css', import.meta.url), 'utf8')
 
 describe('vocabulary and review learning flow contract', () => {

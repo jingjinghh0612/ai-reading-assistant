@@ -3,21 +3,20 @@ import { existsSync, readFileSync } from 'node:fs'
 import { describe, it } from 'node:test'
 
 const readerWorkspaceSource = readFileSync(new URL('./ReaderWorkspace.vue', import.meta.url), 'utf8')
-const readerPrototypeWrapperSource = readFileSync(new URL('./ReaderPrototype.vue', import.meta.url), 'utf8')
-const readerPrototypeDataUrl = new URL('../data/readerPrototypeData.js', import.meta.url)
-const readerPrototypeDataSource = existsSync(readerPrototypeDataUrl)
-  ? readFileSync(readerPrototypeDataUrl, 'utf8')
+const builtInReaderDataUrl = new URL('../data/builtInReaderData.js', import.meta.url)
+const builtInReaderDataSource = existsSync(builtInReaderDataUrl)
+  ? readFileSync(builtInReaderDataUrl, 'utf8')
   : ''
-const readerPrototypeSelectorsUrl = new URL('../data/readerPrototypeSelectors.js', import.meta.url)
-const readerPrototypeSelectorsSource = existsSync(readerPrototypeSelectorsUrl)
-  ? readFileSync(readerPrototypeSelectorsUrl, 'utf8')
+const readerWorkspaceSelectorsUrl = new URL('../data/readerWorkspaceSelectors.js', import.meta.url)
+const readerWorkspaceSelectorsSource = existsSync(readerWorkspaceSelectorsUrl)
+  ? readFileSync(readerWorkspaceSelectorsUrl, 'utf8')
   : ''
 const readerWorkspaceTranslationsUrl = new URL('../composables/useReaderWorkspaceTranslations.js', import.meta.url)
 const readerWorkspaceTranslationsSource = existsSync(readerWorkspaceTranslationsUrl)
   ? readFileSync(readerWorkspaceTranslationsUrl, 'utf8')
   : ''
 const readerWorkspaceComponentNames = [
-  'ReaderWorkspaceAssistant',
+  'ReaderWorkspaceVocabularyPanel',
   'ReaderWorkspaceBookImportPanel',
   'ReaderWorkspacePasteEditor',
   'ReaderWorkspaceReadingPaper',
@@ -33,7 +32,7 @@ const sidebarSource = readFileSync(
   'utf8',
 )
 const wordPanelSource = readFileSync(
-  new URL('../components/reader-workspace/ReaderWorkspaceAssistant.vue', import.meta.url),
+  new URL('../components/reader-workspace/ReaderWorkspaceVocabularyPanel.vue', import.meta.url),
   'utf8',
 )
 const topbarSource = readFileSync(
@@ -48,26 +47,17 @@ const bookImportPanelUrl = new URL('../components/reader-workspace/ReaderWorkspa
 const bookImportPanelSource = existsSync(bookImportPanelUrl)
   ? readFileSync(bookImportPanelUrl, 'utf8')
   : ''
-const prototypeStyleSource = readFileSync(new URL('../reader-prototype.css', import.meta.url), 'utf8')
+const workspaceStyleSource = readFileSync(new URL('../reader-workspace.css', import.meta.url), 'utf8')
 
 function cssBlock(selector) {
-  const start = prototypeStyleSource.indexOf(`${selector} {`)
+  const start = workspaceStyleSource.indexOf(`${selector} {`)
   assert.ok(start >= 0, `${selector} should exist`)
 
-  const end = prototypeStyleSource.indexOf('\n}', start)
+  const end = workspaceStyleSource.indexOf('\n}', start)
   assert.ok(end > start, `${selector} should have a closing brace`)
 
-  return prototypeStyleSource.slice(start, end + 2)
+  return workspaceStyleSource.slice(start, end + 2)
 }
-
-describe('reader prototype compatibility entry', () => {
-  it('wraps the promoted reader workspace implementation', () => {
-    assert.match(readerPrototypeWrapperSource, /<ReaderWorkspace\s*\/>/)
-    assert.match(readerPrototypeWrapperSource, /import\s+ReaderWorkspace\s+from\s+['"]\.\/ReaderWorkspace\.vue['"]/)
-    assert.doesNotMatch(readerPrototypeWrapperSource, /ReaderWorkspaceTopbar/)
-    assert.doesNotMatch(readerPrototypeWrapperSource, /reader-prototype/)
-  })
-})
 
 describe('reader workspace word definition panel contract', () => {
   it('loads promoted workspace components from the reader-workspace component directory', () => {
@@ -111,16 +101,16 @@ describe('reader workspace word definition panel contract', () => {
   })
 
   it('loads reader workspace reading data from a local data module', () => {
-    assert.ok(existsSync(readerPrototypeDataUrl), 'reader workspace data module should exist')
+    assert.ok(existsSync(builtInReaderDataUrl), 'reader workspace data module should exist')
     assert.match(
       readerWorkspaceSource,
-      /import\s*\{\s*prototypeBooks,\s*prototypeChapterContent,\s*prototypeDictionary\s*\}\s*from\s*['"]\.\.\/data\/readerPrototypeData\.js['"]/,
+      /import\s*\{\s*builtInBooks,\s*builtInChapterContent,\s*builtInDictionary\s*\}\s*from\s*['"]\.\.\/data\/builtInReaderData\.js['"]/,
     )
-    assert.match(readerPrototypeDataSource, /export const prototypeBooks\s*=/)
-    assert.match(readerPrototypeDataSource, /export const prototypeChapterContent\s*=/)
-    assert.match(readerPrototypeDataSource, /export const prototypeDictionary\s*=/)
+    assert.match(builtInReaderDataSource, /export const builtInBooks\s*=/)
+    assert.match(builtInReaderDataSource, /export const builtInChapterContent\s*=/)
+    assert.match(builtInReaderDataSource, /export const builtInDictionary\s*=/)
     for (const chapterId of ['chapter-3', 'chapter-4', 'chapter-5', 'chapter-6']) {
-      assert.match(readerPrototypeDataSource, new RegExp(`'${chapterId}':\\s*\\{`))
+      assert.match(builtInReaderDataSource, new RegExp(`'${chapterId}':\\s*\\{`))
     }
 
     assert.match(readerWorkspaceSource, /selectedWordKey/)
@@ -137,25 +127,25 @@ describe('reader workspace word definition panel contract', () => {
   })
 
   it('keeps data selection and dictionary mapping in selector helpers', () => {
-    assert.ok(existsSync(readerPrototypeSelectorsUrl), 'reader workspace selectors module should exist')
+    assert.ok(existsSync(readerWorkspaceSelectorsUrl), 'reader workspace selectors module should exist')
     assert.match(
       readerWorkspaceSource,
-      /from\s*['"]\.\.\/data\/readerPrototypeSelectors\.js['"]/,
+      /from\s*['"]\.\.\/data\/readerWorkspaceSelectors\.js['"]/,
     )
 
     for (const selectorName of [
-      'findPrototypeBook',
-      'findPrototypeBookChapterContent',
-      'getPrototypeChapters',
-      'findPrototypeChapter',
-      'getPrototypeParagraphs',
-      'getPrototypeReadingProgress',
-      'getPrototypeChapterVocabulary',
-      'getPrototypeMockWordbook',
+      'findBook',
+      'findBookChapterContent',
+      'getChapters',
+      'findChapter',
+      'getChapterParagraphs',
+      'getReadingProgress',
+      'getChapterVocabulary',
+      'getSessionVocabulary',
       'mapDictionaryEntryToWordPanel',
     ]) {
       assert.match(readerWorkspaceSource, new RegExp(selectorName))
-      assert.match(readerPrototypeSelectorsSource, new RegExp(`export function ${selectorName}`))
+      assert.match(readerWorkspaceSelectorsSource, new RegExp(`export function ${selectorName}`))
     }
 
     assert.doesNotMatch(readerWorkspaceSource, /\.find\(\(book\)/)
@@ -166,24 +156,24 @@ describe('reader workspace word definition panel contract', () => {
   })
 
   it('renders clickable sentence tokens from structured data helpers instead of raw string matching', () => {
-    assert.match(readerPrototypeDataSource, /sentences:\s*\[/)
-    assert.match(readerPrototypeDataSource, /tokens:\s*\[/)
-    assert.match(readerPrototypeDataSource, /highlighted:\s*true/)
+    assert.match(builtInReaderDataSource, /sentences:\s*\[/)
+    assert.match(builtInReaderDataSource, /tokens:\s*\[/)
+    assert.match(builtInReaderDataSource, /highlighted:\s*true/)
 
     for (const word of ['plan', 'unusually', 'observatory', 'reveal', 'copy', 'sentence']) {
-      assert.match(readerPrototypeDataSource, new RegExp(`wordKey:\\s*'${word}'`))
+      assert.match(builtInReaderDataSource, new RegExp(`wordKey:\\s*'${word}'`))
     }
-    assert.match(readerPrototypeDataSource, /surface:\s*'planned'[\s\S]*lemma:\s*'plan'[\s\S]*wordKey:\s*'plan'/)
-    assert.match(readerPrototypeDataSource, /surface:\s*'copied'[\s\S]*lemma:\s*'copy'[\s\S]*wordKey:\s*'copy'/)
-    assert.doesNotMatch(readerPrototypeDataSource, /wordKey:\s*'planned'/)
-    assert.doesNotMatch(readerPrototypeDataSource, /wordKey:\s*'copied'/)
-    assert.match(readerPrototypeDataSource, /prototypeDictionary\s*=\s*\{[\s\S]*plan:\s*\{[\s\S]*id:\s*'plan'/)
-    assert.match(readerPrototypeDataSource, /prototypeDictionary\s*=\s*\{[\s\S]*copy:\s*\{[\s\S]*id:\s*'copy'/)
-    assert.doesNotMatch(readerPrototypeDataSource, /planned:\s*\{[\s\S]*id:\s*'planned'/)
-    assert.doesNotMatch(readerPrototypeDataSource, /copied:\s*\{[\s\S]*id:\s*'copied'/)
+    assert.match(builtInReaderDataSource, /surface:\s*'planned'[\s\S]*lemma:\s*'plan'[\s\S]*wordKey:\s*'plan'/)
+    assert.match(builtInReaderDataSource, /surface:\s*'copied'[\s\S]*lemma:\s*'copy'[\s\S]*wordKey:\s*'copy'/)
+    assert.doesNotMatch(builtInReaderDataSource, /wordKey:\s*'planned'/)
+    assert.doesNotMatch(builtInReaderDataSource, /wordKey:\s*'copied'/)
+    assert.match(builtInReaderDataSource, /builtInDictionary\s*=\s*\{[\s\S]*plan:\s*\{[\s\S]*id:\s*'plan'/)
+    assert.match(builtInReaderDataSource, /builtInDictionary\s*=\s*\{[\s\S]*copy:\s*\{[\s\S]*id:\s*'copy'/)
+    assert.doesNotMatch(builtInReaderDataSource, /planned:\s*\{[\s\S]*id:\s*'planned'/)
+    assert.doesNotMatch(builtInReaderDataSource, /copied:\s*\{[\s\S]*id:\s*'copied'/)
 
     assert.match(readingPaperSource, /paragraph\.sentences/)
-    assert.match(readingPaperSource, /getPrototypeClickableSentenceTokens/)
+    assert.match(readingPaperSource, /getClickableSentenceTokens/)
     assert.match(readingPaperSource, /getClickableSentenceTokens\(sentence\)/)
     assert.match(readingPaperSource, /token\.wordKey/)
     assert.match(readingPaperSource, /word-token/)
@@ -209,10 +199,10 @@ describe('reader workspace word definition panel contract', () => {
     assert.match(readingPaperSource, /sentenceId:\s*token\.sentenceId/)
 
     assert.match(readerWorkspaceSource, /selectedWordContext/)
-    assert.match(readerWorkspaceSource, /getPrototypeWordContext/)
+    assert.match(readerWorkspaceSource, /getWordContext/)
     assert.match(
       readerWorkspaceSource,
-      /mapDictionaryEntryToWordPanel\(\s*prototypeDictionary\[selectedWordKey\.value\],\s*selectedWordContext\.value\s*\)/,
+      /mapDictionaryEntryToWordPanel\(\s*builtInDictionary\[selectedWordKey\.value\],\s*selectedWordContext\.value\s*\)/,
     )
     assert.match(wordPanelSource, /word\.sourceTranslation/)
     assert.doesNotMatch(readingPaperSource, /\$emit\('select-word',\s*token\.wordKey\)/)
@@ -225,8 +215,8 @@ describe('reader workspace word definition panel contract', () => {
       /import\s*\{\s*useReaderWorkspaceTranslations\s*\}\s*from\s*['"]\.\.\/composables\/useReaderWorkspaceTranslations\.js['"]/,
     )
     assert.match(readerWorkspaceTranslationsSource, /import\s*\{\s*requestTranslation\s+as\s+defaultRequestTranslation\s*\}/)
-    assert.match(readerWorkspaceTranslationsSource, /getPrototypeLocalParagraphTranslation/)
-    assert.match(readerWorkspaceTranslationsSource, /getPrototypeParagraphSourceText/)
+    assert.match(readerWorkspaceTranslationsSource, /getLocalParagraphTranslation/)
+    assert.match(readerWorkspaceTranslationsSource, /getParagraphSourceText/)
     assert.match(readerWorkspaceTranslationsSource, /const displayParagraphs = computed/)
     assert.match(readerWorkspaceTranslationsSource, /translationByParagraphId/)
     assert.match(readerWorkspaceTranslationsSource, /translationLoadingByParagraphId/)
@@ -237,7 +227,7 @@ describe('reader workspace word definition panel contract', () => {
     assert.match(readerWorkspaceSource, /displayParagraphs/)
     assert.match(readerWorkspaceSource, /watch\(/)
     assert.match(readerWorkspaceSource, /:paragraphs="displayParagraphs"/)
-    assert.match(readerWorkspaceSource, /@retry-translation="retryPrototypeTranslation"/)
+    assert.match(readerWorkspaceSource, /@retry-translation="retryParagraphTranslation"/)
     assert.doesNotMatch(readerWorkspaceSource, /from\s+['"]\.\.\/api\/translate\.js['"]/)
 
     assert.match(readingPaperSource, /paragraph\.isTranslationLoading/)
@@ -248,35 +238,35 @@ describe('reader workspace word definition panel contract', () => {
   })
 
   it('uses typed content cache for on-demand reader workspace translations', () => {
-    assert.match(readerWorkspaceTranslationsSource, /function getPrototypeTranslation\(sourceText,\s*translationType,\s*options\s*=\s*\{\}\)/)
+    assert.match(readerWorkspaceTranslationsSource, /function requestCachedTranslation\(sourceText,\s*translationType,\s*options\s*=\s*\{\}\)/)
     assert.match(readerWorkspaceTranslationsSource, /const requestKey\s*=\s*createTranslationCacheKey\(sourceText,\s*translationType\)/)
     assert.match(readerWorkspaceTranslationsSource, /getCachedTranslation\(sourceText,\s*translationType\)/)
     assert.match(readerWorkspaceTranslationsSource, /saveCachedTranslation\(sourceText,\s*data\.translation,\s*translationType\)/)
-    assert.match(readerWorkspaceTranslationsSource, /getPrototypeTranslation\(sourceText,\s*'paragraph',\s*options\)/)
-    assert.match(readerWorkspaceTranslationsSource, /getPrototypeTranslation\(sourceText,\s*'sentence',\s*options\)/)
-    assert.match(readerWorkspaceTranslationsSource, /loadPrototypeSentenceTranslation\(sentence,\s*paragraph\)/)
-    assert.match(readerWorkspaceTranslationsSource, /loadPrototypeParagraphTranslation\(paragraph\)/)
-    assert.match(readerWorkspaceTranslationsSource, /loadPrototypeSentenceTranslation\(sentence,\s*paragraph,\s*\{\s*refresh:\s*true\s*\}\)/)
-    assert.match(readerWorkspaceTranslationsSource, /loadPrototypeParagraphTranslation\(paragraph,\s*\{\s*refresh:\s*true\s*\}\)/)
+    assert.match(readerWorkspaceTranslationsSource, /requestCachedTranslation\(sourceText,\s*'paragraph',\s*options\)/)
+    assert.match(readerWorkspaceTranslationsSource, /requestCachedTranslation\(sourceText,\s*'sentence',\s*options\)/)
+    assert.match(readerWorkspaceTranslationsSource, /loadSentenceTranslation\(sentence,\s*paragraph\)/)
+    assert.match(readerWorkspaceTranslationsSource, /loadParagraphTranslation\(paragraph\)/)
+    assert.match(readerWorkspaceTranslationsSource, /loadSentenceTranslation\(sentence,\s*paragraph,\s*\{\s*refresh:\s*true\s*\}\)/)
+    assert.match(readerWorkspaceTranslationsSource, /loadParagraphTranslation\(paragraph,\s*\{\s*refresh:\s*true\s*\}\)/)
   })
 
   it('loads sentence translations on demand and keeps paragraph translation manual', () => {
-    assert.match(readerWorkspaceTranslationsSource, /getPrototypeLocalSentenceTranslation/)
-    assert.match(readerWorkspaceTranslationsSource, /getPrototypeSentenceSourceText/)
-    assert.match(readerWorkspaceTranslationsSource, /getPrototypeTranslationStateKey/)
+    assert.match(readerWorkspaceTranslationsSource, /getLocalSentenceTranslation/)
+    assert.match(readerWorkspaceTranslationsSource, /getSentenceSourceText/)
+    assert.match(readerWorkspaceTranslationsSource, /createTranslationStateKey/)
     assert.match(readerWorkspaceSource, /selectedSentenceId/)
     assert.match(readerWorkspaceTranslationsSource, /translationBySentenceId/)
     assert.match(readerWorkspaceTranslationsSource, /translationLoadingBySentenceId/)
     assert.match(readerWorkspaceTranslationsSource, /translationErrorBySentenceId/)
-    assert.match(readerWorkspaceTranslationsSource, /loadPrototypeSentenceTranslation/)
-    assert.match(readerWorkspaceSource, /selectPrototypeSentence/)
-    assert.match(readerWorkspaceSource, /retryPrototypeSentenceTranslation/)
-    assert.match(readerWorkspaceSource, /translatePrototypeParagraph/)
+    assert.match(readerWorkspaceTranslationsSource, /loadSentenceTranslation/)
+    assert.match(readerWorkspaceSource, /selectSentence/)
+    assert.match(readerWorkspaceSource, /retrySentenceTranslation/)
+    assert.match(readerWorkspaceSource, /translateParagraph/)
     assert.match(readerWorkspaceSource, /:selected-sentence-id="selectedSentenceId"/)
-    assert.match(readerWorkspaceSource, /@select-sentence="selectPrototypeSentence"/)
-    assert.match(readerWorkspaceSource, /@retry-sentence-translation="retryPrototypeSentenceTranslation"/)
-    assert.match(readerWorkspaceSource, /@translate-paragraph="translatePrototypeParagraph"/)
-    assert.doesNotMatch(readerWorkspaceSource, /function loadMissingPrototypeTranslations/)
+    assert.match(readerWorkspaceSource, /@select-sentence="selectSentence"/)
+    assert.match(readerWorkspaceSource, /@retry-sentence-translation="retrySentenceTranslation"/)
+    assert.match(readerWorkspaceSource, /@translate-paragraph="translateParagraph"/)
+    assert.doesNotMatch(readerWorkspaceSource, /function loadMissingTranslations/)
     assert.doesNotMatch(readerWorkspaceSource, /watch\(\[showTranslation,\s*currentChapterContent\]/)
   })
 
@@ -287,7 +277,7 @@ describe('reader workspace word definition panel contract', () => {
       readerWorkspaceSource,
       /isPastedArticleActive\.value[\s\S]*pastedArticleVersion\.value/,
     )
-    assert.match(readerWorkspaceTranslationsSource, /function clearPrototypeTranslationState/)
+    assert.match(readerWorkspaceTranslationsSource, /function clearTranslationState/)
     assert.match(readerWorkspaceTranslationsSource, /translationByParagraphId\.value\s*=\s*\{\}/)
     assert.match(readerWorkspaceTranslationsSource, /translationLoadingByParagraphId\.value\s*=\s*\{\}/)
     assert.match(readerWorkspaceTranslationsSource, /translationErrorByParagraphId\.value\s*=\s*\{\}/)
@@ -308,26 +298,26 @@ describe('reader workspace word definition panel contract', () => {
   it('connects missing reader workspace dictionary entries to the workspace word lookup endpoint and vocabulary store', () => {
     assert.match(
       readerWorkspaceSource,
-      /import\s*\{\s*requestPrototypeWordExplanation\s*\}\s*from\s*['"]\.\.\/api\/prototypeWord\.js['"]/,
+      /import\s*\{\s*requestWordLookup\s*\}\s*from\s*['"]\.\.\/api\/wordLookup\.js['"]/,
     )
     assert.match(
       readerWorkspaceSource,
       /import\s*\{[\s\S]*isWordSaved[\s\S]*removeVocabularyWord[\s\S]*saveVocabularyWord[\s\S]*\}\s*from\s*['"]\.\.\/utils\/vocabulary\.js['"]/,
     )
-    assert.match(readerWorkspaceSource, /mapAiWordDetailToWordPanel/)
-    assert.match(readerWorkspaceSource, /selectedAiWordEntry/)
+    assert.match(readerWorkspaceSource, /mapWordLookupDetailToWordPanel/)
+    assert.match(readerWorkspaceSource, /selectedWordLookupDetail/)
     assert.match(readerWorkspaceSource, /wordCache/)
     assert.match(readerWorkspaceSource, /wordRequests/)
-    assert.match(readerWorkspaceSource, /getAiWordDetail/)
-    assert.match(readerWorkspaceSource, /requestPrototypeWordExplanation\(word\)/)
-    assert.match(readerWorkspaceSource, /prototypeDictionary\[selectedWordKey\.value\]/)
-    assert.match(readerWorkspaceSource, /mapAiWordDetailToWordPanel\(\s*selectedAiWordEntry\.value,\s*selectedWordContext\.value\s*\)/)
+    assert.match(readerWorkspaceSource, /getWordLookupDetail/)
+    assert.match(readerWorkspaceSource, /requestWordLookup\(word\)/)
+    assert.match(readerWorkspaceSource, /builtInDictionary\[selectedWordKey\.value\]/)
+    assert.match(readerWorkspaceSource, /mapWordLookupDetailToWordPanel\(\s*selectedWordLookupDetail\.value,\s*selectedWordContext\.value\s*\)/)
     assert.match(readerWorkspaceSource, /saveVocabularyWord\(/)
     assert.match(readerWorkspaceSource, /removeVocabularyWord\(/)
     assert.match(readerWorkspaceSource, /isWordSaved\(/)
     assert.match(readerWorkspaceSource, /:is-word-loading="isWordLoading"/)
     assert.match(readerWorkspaceSource, /:word-error-message="wordErrorMessage"/)
-    assert.match(readerWorkspaceSource, /@retry-word="retrySelectedPrototypeWord"/)
+    assert.match(readerWorkspaceSource, /@retry-word="retrySelectedWordLookup"/)
 
     assert.match(wordPanelSource, /isWordLoading/)
     assert.match(wordPanelSource, /wordErrorMessage/)
@@ -356,7 +346,7 @@ describe('reader workspace word definition panel contract', () => {
     assert.match(readerWorkspaceSource, /const chapterVocabulary = computed/)
     assert.match(
       readerWorkspaceSource,
-      /getPrototypeChapterVocabulary\(\s*currentChapterContent\.value,\s*prototypeDictionary,\s*addedWordKeys\.value\s*\)/,
+      /getChapterVocabulary\(\s*currentChapterContent\.value,\s*builtInDictionary,\s*sessionVocabularyWordKeys\.value\s*\)/,
     )
     assert.match(readerWorkspaceSource, /:vocabulary="chapterVocabulary"/)
 
@@ -369,40 +359,40 @@ describe('reader workspace word definition panel contract', () => {
     assert.match(wordPanelSource, /item\.meaning/)
     assert.match(wordPanelSource, /item\.count/)
     assert.match(wordPanelSource, /item\.isAdded/)
-    assert.match(wordPanelSource, /defineEmits\(\[[\s\S]*'add-word'[\s\S]*'remove-word'[\s\S]*'select-word'[\s\S]*'retry-word'[\s\S]*'show-wordbook'[\s\S]*\]\)/)
-    assert.match(prototypeStyleSource, /\.chapter-vocabulary-list/)
-    assert.match(prototypeStyleSource, /\.chapter-vocabulary-item/)
+    assert.match(wordPanelSource, /defineEmits\(\[[\s\S]*'add-word'[\s\S]*'remove-word'[\s\S]*'select-word'[\s\S]*'retry-word'[\s\S]*'show-session-vocabulary'[\s\S]*\]\)/)
+    assert.match(workspaceStyleSource, /\.chapter-vocabulary-list/)
+    assert.match(workspaceStyleSource, /\.chapter-vocabulary-item/)
 
     assert.doesNotMatch(wordPanelSource, /planned、unusually、observatory、reveal、copied、sentence/)
   })
 
-  it('shows the local wordbook state while saving words through the existing vocabulary store', () => {
-    assert.match(readerWorkspaceSource, /const mockWordbook = computed/)
+  it('shows the session vocabulary while saving words through the existing vocabulary store', () => {
+    assert.match(readerWorkspaceSource, /const sessionVocabulary = computed/)
     assert.match(
       readerWorkspaceSource,
-      /getPrototypeMockWordbook\(\s*currentChapterContent\.value,\s*prototypeDictionary,\s*addedWordKeys\.value\s*\)/,
+      /getSessionVocabulary\(\s*currentChapterContent\.value,\s*builtInDictionary,\s*sessionVocabularyWordKeys\.value\s*\)/,
     )
-    assert.match(readerWorkspaceSource, /:wordbook="mockWordbook"/)
-    assert.match(readerWorkspaceSource, /@remove-word="removeFromMockWordbook"/)
-    assert.match(readerWorkspaceSource, /@show-wordbook="clearSelectedWord"/)
-    assert.match(readerWorkspaceSource, /function removeFromMockWordbook/)
+    assert.match(readerWorkspaceSource, /:session-vocabulary="sessionVocabulary"/)
+    assert.match(readerWorkspaceSource, /@remove-word="removeWordFromVocabulary"/)
+    assert.match(readerWorkspaceSource, /@show-session-vocabulary="clearSelectedWord"/)
+    assert.match(readerWorkspaceSource, /function removeWordFromVocabulary/)
     assert.match(readerWorkspaceSource, /function clearSelectedWord/)
     assert.match(readerWorkspaceSource, /saveVocabularyWord\(/)
     assert.match(readerWorkspaceSource, /removeVocabularyWord\(/)
     assert.doesNotMatch(readerWorkspaceSource, /localStorage/)
 
-    assert.match(wordPanelSource, /wordbook/)
+    assert.match(wordPanelSource, /sessionVocabulary/)
     assert.match(wordPanelSource, /本地生词本/)
     assert.match(wordPanelSource, /本轮还没有加入生词/)
-    assert.match(wordPanelSource, /local-wordbook-list/)
-    assert.match(wordPanelSource, /v-for="item in wordbook"/)
+    assert.match(wordPanelSource, /session-vocabulary-list/)
+    assert.match(wordPanelSource, /v-for="item in sessionVocabulary"/)
     assert.match(wordPanelSource, /\$emit\('select-word',\s*item\.selection\)/)
     assert.match(wordPanelSource, /\$emit\('remove-word',\s*item\.wordKey\)/)
     assert.match(wordPanelSource, /查看本地生词本/)
     assert.match(wordPanelSource, /移出生词本/)
-    assert.match(wordPanelSource, /defineEmits\(\[[\s\S]*'add-word'[\s\S]*'remove-word'[\s\S]*'select-word'[\s\S]*'retry-word'[\s\S]*'show-wordbook'[\s\S]*\]\)/)
-    assert.match(prototypeStyleSource, /\.local-wordbook-list/)
-    assert.match(prototypeStyleSource, /\.local-wordbook-remove/)
+    assert.match(wordPanelSource, /defineEmits\(\[[\s\S]*'add-word'[\s\S]*'remove-word'[\s\S]*'select-word'[\s\S]*'retry-word'[\s\S]*'show-session-vocabulary'[\s\S]*\]\)/)
+    assert.match(workspaceStyleSource, /\.session-vocabulary-list/)
+    assert.match(workspaceStyleSource, /\.session-vocabulary-remove/)
   })
 
   it('removes decorative reading and dictionary labels from the reader workspace', () => {
@@ -422,10 +412,10 @@ describe('reader workspace word definition panel contract', () => {
     assert.doesNotMatch(readerWorkspaceSource, /当前句|难度 B1|2 个生词|长句|收藏段|收束段|复习 1 词/)
     assert.doesNotMatch(readerWorkspaceSource, /阅读词汇|高频词|副词/)
 
-    assert.doesNotMatch(prototypeStyleSource, /\.reading-status/)
-    assert.doesNotMatch(prototypeStyleSource, /\.paragraph-meta/)
-    assert.doesNotMatch(prototypeStyleSource, /\.learning-tags/)
-    assert.doesNotMatch(prototypeStyleSource, /\.word-tags/)
+    assert.doesNotMatch(workspaceStyleSource, /\.reading-status/)
+    assert.doesNotMatch(workspaceStyleSource, /\.paragraph-meta/)
+    assert.doesNotMatch(workspaceStyleSource, /\.learning-tags/)
+    assert.doesNotMatch(workspaceStyleSource, /\.word-tags/)
   })
 
   it('does not render the obsolete floating notes bar in the reader workspace', () => {
@@ -434,16 +424,16 @@ describe('reader workspace word definition panel contract', () => {
     assert.doesNotMatch(readerWorkspaceSource, /const notes/)
     assert.doesNotMatch(readerWorkspaceSource, /nextNoteId/)
 
-    assert.doesNotMatch(prototypeStyleSource, /\.floating-notes/)
-    assert.doesNotMatch(prototypeStyleSource, /\.notes-tabs/)
-    assert.doesNotMatch(prototypeStyleSource, /\.notes-tab/)
-    assert.doesNotMatch(prototypeStyleSource, /\.note-content/)
-    assert.doesNotMatch(prototypeStyleSource, /\.notes-list/)
+    assert.doesNotMatch(workspaceStyleSource, /\.floating-notes/)
+    assert.doesNotMatch(workspaceStyleSource, /\.notes-tabs/)
+    assert.doesNotMatch(workspaceStyleSource, /\.notes-tab/)
+    assert.doesNotMatch(workspaceStyleSource, /\.note-content/)
+    assert.doesNotMatch(workspaceStyleSource, /\.notes-list/)
   })
 
   it('keeps the reader workspace toolbar focused on reading display controls only', () => {
     assert.match(topbarSource, /toolstrip-shell/)
-    assert.match(topbarSource, /prototype-brand-copy/)
+    assert.match(topbarSource, /workspace-brand-copy/)
     assert.match(topbarSource, /<strong>Reading<\/strong>/)
     assert.match(topbarSource, /智能精读工作台/)
     assert.match(topbarSource, /toolstrip-group reading-group/)
@@ -463,7 +453,7 @@ describe('reader workspace word definition panel contract', () => {
     assert.doesNotMatch(topbarSource, /compact/)
     assert.doesNotMatch(topbarSource, /笔记/)
     assert.doesNotMatch(topbarSource, /toggle-note-panel/)
-    assert.doesNotMatch(readerWorkspaceSource, /showPrototypeNoteHint/)
+    assert.doesNotMatch(readerWorkspaceSource, /showNoteHint/)
     assert.doesNotMatch(readerWorkspaceSource, /noteToolTouched/)
 
     assert.doesNotMatch(topbarSource, /toolstrip-group nav-group/)
@@ -484,96 +474,96 @@ describe('reader workspace word definition panel contract', () => {
   })
 
   it('removes unused top-right action buttons from the reader workspace toolbar', () => {
-    assert.doesNotMatch(topbarSource, /prototype-actions/)
-    assert.doesNotMatch(topbarSource, /prototype-action-button/)
-    assert.doesNotMatch(topbarSource, /prototype-avatar/)
+    assert.doesNotMatch(topbarSource, /workspace-actions/)
+    assert.doesNotMatch(topbarSource, /workspace-action-button/)
+    assert.doesNotMatch(topbarSource, /workspace-avatar/)
     assert.doesNotMatch(topbarSource, /搜索/)
     assert.doesNotMatch(topbarSource, /导入文本/)
     assert.doesNotMatch(topbarSource, /设置/)
 
-    assert.doesNotMatch(prototypeStyleSource, /\.prototype-actions/)
-    assert.doesNotMatch(prototypeStyleSource, /\.prototype-action-button/)
-    assert.doesNotMatch(prototypeStyleSource, /\.prototype-avatar/)
+    assert.doesNotMatch(workspaceStyleSource, /\.workspace-actions/)
+    assert.doesNotMatch(workspaceStyleSource, /\.workspace-action-button/)
+    assert.doesNotMatch(workspaceStyleSource, /\.workspace-avatar/)
   })
 
   it('styles selected word tokens and dictionary details without chat UI emphasis', () => {
-    assert.match(prototypeStyleSource, /\.sentence-highlight-yellow\s*\{[\s\S]*rgba\(249, 216, 102/)
-    assert.match(prototypeStyleSource, /\.word-token\s*\{[\s\S]*border-bottom/)
-    assert.match(prototypeStyleSource, /\.word-token\s*\{[\s\S]*color:\s*inherit/)
-    assert.match(prototypeStyleSource, /\.word-token:hover\s*\{[\s\S]*background:\s*rgba\(232, 237, 244, 0\.58\)/)
-    assert.match(prototypeStyleSource, /\.word-token\.selected\s*\{[\s\S]*background:\s*var\(--prototype-accent-soft\)/)
-    assert.match(prototypeStyleSource, /\.sentence-highlight \.word-token\.selected/)
-    assert.match(prototypeStyleSource, /\.word-definition-panel/)
+    assert.match(workspaceStyleSource, /\.sentence-highlight-yellow\s*\{[\s\S]*rgba\(249, 216, 102/)
+    assert.match(workspaceStyleSource, /\.word-token\s*\{[\s\S]*border-bottom/)
+    assert.match(workspaceStyleSource, /\.word-token\s*\{[\s\S]*color:\s*inherit/)
+    assert.match(workspaceStyleSource, /\.word-token:hover\s*\{[\s\S]*background:\s*rgba\(232, 237, 244, 0\.58\)/)
+    assert.match(workspaceStyleSource, /\.word-token\.selected\s*\{[\s\S]*background:\s*var\(--workspace-accent-soft\)/)
+    assert.match(workspaceStyleSource, /\.sentence-highlight \.word-token\.selected/)
+    assert.match(workspaceStyleSource, /\.word-definition-panel/)
     assert.match(wordPanelSource, /word\.exampleTranslation/)
     assert.match(wordPanelSource, /word\.forms/)
     assert.match(wordPanelSource, /word-example-translation/)
     assert.match(wordPanelSource, /word-form-list/)
-    assert.match(prototypeStyleSource, /\.word-detail-list div\s*\{[\s\S]*border-top/)
-    assert.match(prototypeStyleSource, /\.word-example-translation\s*\{[\s\S]*color:\s*var\(--prototype-muted\)/)
-    assert.match(prototypeStyleSource, /\.word-form-list\s*\{[\s\S]*display:\s*flex/)
-    assert.match(prototypeStyleSource, /\.word-form-list span\s*\{[\s\S]*border:\s*1px solid #e1e7f0/)
-    assert.match(prototypeStyleSource, /\.wordbook-button/)
-    assert.doesNotMatch(cssBlock('.wordbook-message'), /border:/)
-    assert.doesNotMatch(cssBlock('.wordbook-message'), /background:/)
-    assert.doesNotMatch(prototypeStyleSource, /\.assistant-input-box/)
+    assert.match(workspaceStyleSource, /\.word-detail-list div\s*\{[\s\S]*border-top/)
+    assert.match(workspaceStyleSource, /\.word-example-translation\s*\{[\s\S]*color:\s*var\(--workspace-muted\)/)
+    assert.match(workspaceStyleSource, /\.word-form-list\s*\{[\s\S]*display:\s*flex/)
+    assert.match(workspaceStyleSource, /\.word-form-list span\s*\{[\s\S]*border:\s*1px solid #e1e7f0/)
+    assert.match(workspaceStyleSource, /\.vocabulary-button/)
+    assert.doesNotMatch(cssBlock('.vocabulary-message'), /border:/)
+    assert.doesNotMatch(cssBlock('.vocabulary-message'), /background:/)
+    assert.doesNotMatch(workspaceStyleSource, /\.assistant-input-box/)
   })
 
   it('styles the top toolbar as grouped reader controls with clear states', () => {
-    assert.match(prototypeStyleSource, /grid-template-rows:\s*52px 42px/)
-    assert.match(prototypeStyleSource, /\.prototype-topbar\s*\{[\s\S]*border-bottom:\s*1px solid rgba\(184, 197, 215, 0\.48\)/)
-    assert.match(prototypeStyleSource, /\.prototype-topbar\s*\{[\s\S]*backdrop-filter:\s*blur\(22px\) saturate\(150%\)/)
-    assert.match(prototypeStyleSource, /\.prototype-brand-copy\s*\{[\s\S]*display:\s*grid/)
-    assert.match(prototypeStyleSource, /\.prototype-brand-copy strong\s*\{[\s\S]*font-size:\s*16px/)
-    assert.match(prototypeStyleSource, /\.prototype-brand-copy small\s*\{[\s\S]*font-size:\s*10\.5px/)
-    assert.match(prototypeStyleSource, /\.prototype-brand-mark\s*\{[\s\S]*border-radius:\s*12px/)
-    assert.match(prototypeStyleSource, /\.prototype-book-select\s*\{[\s\S]*border-radius:\s*16px/)
-    assert.match(prototypeStyleSource, /\.prototype-book-select\s*\{[\s\S]*box-shadow:\s*0 14px 34px rgba\(31, 45, 71, 0\.08\)/)
-    assert.match(prototypeStyleSource, /\.prototype-toolstrip\s*\{[\s\S]*overflow-x:\s*auto/)
-    assert.match(prototypeStyleSource, /\.prototype-toolstrip\s*\{[\s\S]*height:\s*42px/)
-    assert.match(prototypeStyleSource, /\.prototype-toolstrip\s*\{[\s\S]*padding:\s*0 20px/)
-    assert.match(prototypeStyleSource, /\.prototype-toolstrip\s*\{[\s\S]*border-bottom:\s*1px solid rgba\(216, 224, 235, 0\.84\)/)
-    assert.match(prototypeStyleSource, /\.prototype-toolstrip\s*\{[\s\S]*background:\s*rgba\(247, 250, 253, 0\.78\)/)
-    assert.match(prototypeStyleSource, /\.toolstrip-shell\s*\{[\s\S]*gap:\s*12px/)
-    assert.match(prototypeStyleSource, /\.toolstrip-group\s*\{[\s\S]*gap:\s*4px/)
-    assert.match(prototypeStyleSource, /\.toolstrip-group\s*\{[\s\S]*border:\s*1px solid rgba\(213, 222, 235, 0\.92\)/)
-    assert.match(prototypeStyleSource, /\.toolstrip-group\s*\{[\s\S]*border-radius:\s*14px/)
-    assert.match(prototypeStyleSource, /\.toolstrip-group\s*\{[\s\S]*background:\s*rgba\(255, 255, 255, 0\.88\)/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*height:\s*32px/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*min-width:\s*48px/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*gap:\s*6px/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*border:\s*1px solid rgba\(216, 224, 235, 0\.92\)/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*border-radius:\s*11px/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*color:\s*#475569/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*background:\s*rgba\(255, 255, 255, 0\.82\)/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*font-size:\s*13px/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button\s*\{[\s\S]*transition:/)
-    assert.match(prototypeStyleSource, /\.tool-icon\s*\{[\s\S]*width:\s*16px/)
-    assert.match(prototypeStyleSource, /\.tool-icon svg\s*\{[\s\S]*width:\s*16px/)
-    assert.match(prototypeStyleSource, /\.tool-label\s*\{[\s\S]*line-height:\s*1/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button\.active,[\s\S]*\.toolstrip-button\.switch-on\s*\{[\s\S]*color:\s*#1d4ed8/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button\.active,[\s\S]*\.toolstrip-button\.switch-on\s*\{[\s\S]*background:\s*#edf4ff/)
-    assert.match(prototypeStyleSource, /\.reader-prototype \.toolstrip-button:disabled\s*\{[\s\S]*color:\s*#94a3b8/)
-    assert.match(prototypeStyleSource, /\.reader-prototype \.toolstrip-button:disabled\s*\{[\s\S]*background:\s*#f8fafc/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button:hover:not\(:disabled\)/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button:active:not\(:disabled\)/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button:focus-visible/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button\.active/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button:disabled/)
-    assert.match(prototypeStyleSource, /\.toolstrip-button\.switch-on/)
+    assert.match(workspaceStyleSource, /grid-template-rows:\s*52px 42px/)
+    assert.match(workspaceStyleSource, /\.workspace-topbar\s*\{[\s\S]*border-bottom:\s*1px solid rgba\(184, 197, 215, 0\.48\)/)
+    assert.match(workspaceStyleSource, /\.workspace-topbar\s*\{[\s\S]*backdrop-filter:\s*blur\(22px\) saturate\(150%\)/)
+    assert.match(workspaceStyleSource, /\.workspace-brand-copy\s*\{[\s\S]*display:\s*grid/)
+    assert.match(workspaceStyleSource, /\.workspace-brand-copy strong\s*\{[\s\S]*font-size:\s*16px/)
+    assert.match(workspaceStyleSource, /\.workspace-brand-copy small\s*\{[\s\S]*font-size:\s*10\.5px/)
+    assert.match(workspaceStyleSource, /\.workspace-brand-mark\s*\{[\s\S]*border-radius:\s*12px/)
+    assert.match(workspaceStyleSource, /\.workspace-book-select\s*\{[\s\S]*border-radius:\s*16px/)
+    assert.match(workspaceStyleSource, /\.workspace-book-select\s*\{[\s\S]*box-shadow:\s*0 14px 34px rgba\(31, 45, 71, 0\.08\)/)
+    assert.match(workspaceStyleSource, /\.workspace-toolstrip\s*\{[\s\S]*overflow-x:\s*auto/)
+    assert.match(workspaceStyleSource, /\.workspace-toolstrip\s*\{[\s\S]*height:\s*42px/)
+    assert.match(workspaceStyleSource, /\.workspace-toolstrip\s*\{[\s\S]*padding:\s*0 20px/)
+    assert.match(workspaceStyleSource, /\.workspace-toolstrip\s*\{[\s\S]*border-bottom:\s*1px solid rgba\(216, 224, 235, 0\.84\)/)
+    assert.match(workspaceStyleSource, /\.workspace-toolstrip\s*\{[\s\S]*background:\s*rgba\(247, 250, 253, 0\.78\)/)
+    assert.match(workspaceStyleSource, /\.toolstrip-shell\s*\{[\s\S]*gap:\s*12px/)
+    assert.match(workspaceStyleSource, /\.toolstrip-group\s*\{[\s\S]*gap:\s*4px/)
+    assert.match(workspaceStyleSource, /\.toolstrip-group\s*\{[\s\S]*border:\s*1px solid rgba\(213, 222, 235, 0\.92\)/)
+    assert.match(workspaceStyleSource, /\.toolstrip-group\s*\{[\s\S]*border-radius:\s*14px/)
+    assert.match(workspaceStyleSource, /\.toolstrip-group\s*\{[\s\S]*background:\s*rgba\(255, 255, 255, 0\.88\)/)
+    assert.match(workspaceStyleSource, /\.toolstrip-button\s*\{[\s\S]*height:\s*32px/)
+    assert.match(workspaceStyleSource, /\.toolstrip-button\s*\{[\s\S]*min-width:\s*48px/)
+    assert.match(workspaceStyleSource, /\.toolstrip-button\s*\{[\s\S]*gap:\s*6px/)
+    assert.match(workspaceStyleSource, /\.toolstrip-button\s*\{[\s\S]*border:\s*1px solid rgba\(216, 224, 235, 0\.92\)/)
+    assert.match(workspaceStyleSource, /\.toolstrip-button\s*\{[\s\S]*border-radius:\s*11px/)
+    assert.match(workspaceStyleSource, /\.toolstrip-button\s*\{[\s\S]*color:\s*#475569/)
+    assert.match(workspaceStyleSource, /\.toolstrip-button\s*\{[\s\S]*background:\s*rgba\(255, 255, 255, 0\.82\)/)
+    assert.match(workspaceStyleSource, /\.toolstrip-button\s*\{[\s\S]*font-size:\s*13px/)
+    assert.match(workspaceStyleSource, /\.toolstrip-button\s*\{[\s\S]*transition:/)
+    assert.match(workspaceStyleSource, /\.tool-icon\s*\{[\s\S]*width:\s*16px/)
+    assert.match(workspaceStyleSource, /\.tool-icon svg\s*\{[\s\S]*width:\s*16px/)
+    assert.match(workspaceStyleSource, /\.tool-label\s*\{[\s\S]*line-height:\s*1/)
+    assert.match(workspaceStyleSource, /\.toolstrip-button\.active,[\s\S]*\.toolstrip-button\.switch-on\s*\{[\s\S]*color:\s*#1d4ed8/)
+    assert.match(workspaceStyleSource, /\.toolstrip-button\.active,[\s\S]*\.toolstrip-button\.switch-on\s*\{[\s\S]*background:\s*#edf4ff/)
+    assert.match(workspaceStyleSource, /\.reader-workspace \.toolstrip-button:disabled\s*\{[\s\S]*color:\s*#94a3b8/)
+    assert.match(workspaceStyleSource, /\.reader-workspace \.toolstrip-button:disabled\s*\{[\s\S]*background:\s*#f8fafc/)
+    assert.match(workspaceStyleSource, /\.toolstrip-button:hover:not\(:disabled\)/)
+    assert.match(workspaceStyleSource, /\.toolstrip-button:active:not\(:disabled\)/)
+    assert.match(workspaceStyleSource, /\.toolstrip-button:focus-visible/)
+    assert.match(workspaceStyleSource, /\.toolstrip-button\.active/)
+    assert.match(workspaceStyleSource, /\.toolstrip-button:disabled/)
+    assert.match(workspaceStyleSource, /\.toolstrip-button\.switch-on/)
   })
 
   it('wires reader workspace highlighter state through the page', () => {
-    assert.match(readerWorkspaceSource, /prototypeHighlightColors/)
+    assert.match(readerWorkspaceSource, /highlightColors/)
     assert.match(readerWorkspaceSource, /isHighlightMode/)
     assert.match(readerWorkspaceSource, /activeHighlightColorId/)
     assert.match(readerWorkspaceSource, /isHighlightClearMode/)
     assert.match(readerWorkspaceSource, /sentenceHighlightsByChapter/)
     assert.match(readerWorkspaceSource, /currentChapterHighlights/)
-    assert.match(readerWorkspaceSource, /getDefaultPrototypeHighlights/)
-    assert.match(readerWorkspaceSource, /getPrototypeChapterHighlights/)
-    assert.match(readerWorkspaceSource, /togglePrototypeSentenceHighlight/)
-    assert.match(readerWorkspaceSource, /removePrototypeSentenceHighlight/)
-    assert.match(readerWorkspaceSource, /:highlight-colors="prototypeHighlightColors"/)
+    assert.match(readerWorkspaceSource, /getDefaultHighlights/)
+    assert.match(readerWorkspaceSource, /getChapterHighlights/)
+    assert.match(readerWorkspaceSource, /toggleSentenceHighlight/)
+    assert.match(readerWorkspaceSource, /removeSentenceHighlight/)
+    assert.match(readerWorkspaceSource, /:highlight-colors="highlightColors"/)
     assert.match(readerWorkspaceSource, /:is-highlight-mode="isHighlightMode"/)
     assert.match(readerWorkspaceSource, /:active-highlight-color-id="activeHighlightColorId"/)
     assert.match(readerWorkspaceSource, /:is-highlight-clear-mode="isHighlightClearMode"/)
@@ -581,23 +571,23 @@ describe('reader workspace word definition panel contract', () => {
     assert.match(readerWorkspaceSource, /@toggle-highlight-mode="toggleHighlightMode"/)
     assert.match(readerWorkspaceSource, /@select-highlight-color="selectHighlightColor"/)
     assert.match(readerWorkspaceSource, /@select-highlight-clear="selectHighlightClear"/)
-    assert.match(readerWorkspaceSource, /@toggle-sentence-highlight="toggleSentenceHighlight"/)
+    assert.match(readerWorkspaceSource, /@toggle-sentence-highlight="handleSentenceHighlightToggle"/)
     assert.doesNotMatch(readerWorkspaceSource, /localStorage/)
   })
 
   it('renders an empty book state instead of falling back to stale chapter content', () => {
-    assert.match(readerWorkspaceSource, /findPrototypeBookChapterContent/)
+    assert.match(readerWorkspaceSource, /findBookChapterContent/)
     assert.match(
       readerWorkspaceSource,
-      /findPrototypeBookChapterContent\([\s\S]*chapterContentById\.value,[\s\S]*currentBook\.value,[\s\S]*activeChapterId\.value,[\s\S]*fallbackChapterId,[\s\S]*\)/,
+      /findBookChapterContent\([\s\S]*chapterContentById\.value,[\s\S]*currentBook\.value,[\s\S]*activeChapterId\.value,[\s\S]*fallbackChapterId,[\s\S]*\)/,
     )
     assert.match(readerWorkspaceSource, /v-else-if="currentChapter"/)
-    assert.match(readerWorkspaceSource, /prototype-empty-book/)
-    assert.match(readerWorkspaceSource, /getPrototypeChapters\(currentBook\.value\)/)
-    assert.match(prototypeStyleSource, /\.prototype-empty-book/)
+    assert.match(readerWorkspaceSource, /workspace-empty-book/)
+    assert.match(readerWorkspaceSource, /getChapters\(currentBook\.value\)/)
+    assert.match(workspaceStyleSource, /\.workspace-empty-book/)
     assert.doesNotMatch(
       readerWorkspaceSource,
-      /findPrototypeChapterContent\(\s*chapterContentById\.value,\s*activeChapterId\.value,\s*fallbackChapterId\s*\)/,
+      /findChapterContent\(\s*chapterContentById\.value,\s*activeChapterId\.value,\s*fallbackChapterId\s*\)/,
     )
     assert.match(topbarSource, /v-if="chapter"/)
     assert.match(topbarSource, /chapter:\s*\{[\s\S]*default:\s*null/)
@@ -607,7 +597,7 @@ describe('reader workspace word definition panel contract', () => {
     assert.ok(existsSync(pasteEditorUrl), 'paste editor should render inside the reader workspace area')
     assert.match(readerWorkspaceSource, /import\s+ReaderWorkspacePasteEditor\s+from\s+['"]\.\.\/components\/reader-workspace\/ReaderWorkspacePasteEditor\.vue['"]/)
     assert.match(readerWorkspaceSource, /readClipboardText/)
-    assert.match(readerWorkspaceSource, /createPastedPrototypeChapterContent/)
+    assert.match(readerWorkspaceSource, /createPastedChapterContent/)
     assert.match(readerWorkspaceSource, /pastedChapterContent/)
     assert.match(readerWorkspaceSource, /isPastedArticleActive/)
     assert.match(readerWorkspaceSource, /sidebarActiveChapterId/)
@@ -625,9 +615,9 @@ describe('reader workspace word definition panel contract', () => {
     assert.match(readerWorkspaceSource, /@cancel="closePasteEditor"/)
     assert.match(readerWorkspaceSource, /@read-clipboard="readClipboardIntoDraft"/)
     assert.match(readerWorkspaceSource, /@paste-article="openPasteEditor"/)
-    assert.doesNotMatch(readerWorkspaceSource, /@paste-article="pastePrototypeArticle"/)
-    assert.match(readerWorkspaceSource, /const chapters = computed\(\(\) => getPrototypeChapters\(currentBook\.value\)\)/)
-    assert.doesNotMatch(readerWorkspaceSource, /const baseChapters = getPrototypeChapters/)
+    assert.doesNotMatch(readerWorkspaceSource, /@paste-article="pasteArticle"/)
+    assert.match(readerWorkspaceSource, /const chapters = computed\(\(\) => getChapters\(currentBook\.value\)\)/)
+    assert.doesNotMatch(readerWorkspaceSource, /const baseChapters = getChapters/)
     assert.doesNotMatch(readerWorkspaceSource, /\.\.\.baseChapters/)
     assert.doesNotMatch(readerWorkspaceSource, /activeChapterId\.value\s*=\s*pastedChapter\.id/)
     assert.match(readerWorkspaceSource, /isPastedArticleActive\.value\s*=\s*true/)
@@ -643,29 +633,29 @@ describe('reader workspace word definition panel contract', () => {
   it('wires PDF and EPUB file imports into the real reader workspace bookshelf', () => {
     assert.ok(existsSync(bookImportPanelUrl), 'book import panel should exist')
     assert.match(readerWorkspaceSource, /import\s+ReaderWorkspaceBookImportPanel\s+from\s+['"]\.\.\/components\/reader-workspace\/ReaderWorkspaceBookImportPanel\.vue['"]/)
-    assert.match(readerWorkspaceSource, /parsePrototypeBookFile/)
-    assert.match(readerWorkspaceSource, /createImportedPrototypeBookFromText/)
-    assert.match(readerWorkspaceSource, /loadImportedPrototypeBooks/)
-    assert.match(readerWorkspaceSource, /appendImportedPrototypeBook/)
-    assert.match(readerWorkspaceSource, /removeImportedPrototypeBook/)
-    assert.match(readerWorkspaceSource, /getImportedPrototypeChapterContentById/)
+    assert.match(readerWorkspaceSource, /parseBookFile/)
+    assert.match(readerWorkspaceSource, /createImportedBookFromText/)
+    assert.match(readerWorkspaceSource, /loadImportedBooks/)
+    assert.match(readerWorkspaceSource, /appendImportedBook/)
+    assert.match(readerWorkspaceSource, /removeImportedBook/)
+    assert.match(readerWorkspaceSource, /getImportedChapterContentById/)
     assert.match(readerWorkspaceSource, /const importedBooks = ref\(\[\]\)/)
     assert.match(readerWorkspaceSource, /loadImportedBooksIntoShelf\(\)/)
     assert.match(readerWorkspaceSource, /async function loadImportedBooksIntoShelf/)
-    assert.match(readerWorkspaceSource, /await loadImportedPrototypeBooks\(\)/)
-    assert.match(readerWorkspaceSource, /const books = computed\(\(\) => \[\.\.\.importedBooks\.value,\s*\.\.\.prototypeBooks\]\)/)
+    assert.match(readerWorkspaceSource, /await loadImportedBooks\(\)/)
+    assert.match(readerWorkspaceSource, /const books = computed\(\(\) => \[\.\.\.importedBooks\.value,\s*\.\.\.builtInBooks\]\)/)
     assert.match(readerWorkspaceSource, /:books="books"/)
     assert.match(readerWorkspaceSource, /@select-book="selectBook"/)
     assert.match(readerWorkspaceSource, /@import-book="openBookImport"/)
     assert.match(readerWorkspaceSource, /@delete-book="deleteImportedBook"/)
     assert.match(readerWorkspaceSource, /async function deleteImportedBook/)
-    assert.match(readerWorkspaceSource, /await removeImportedPrototypeBook\(bookId\)/)
+    assert.match(readerWorkspaceSource, /await removeImportedBook\(bookId\)/)
     assert.match(readerWorkspaceSource, /<ReaderWorkspaceBookImportPanel/)
     assert.match(readerWorkspaceSource, /v-if="isBookImportOpen"/)
     assert.match(readerWorkspaceSource, /@select-file="selectImportFile"/)
     assert.match(readerWorkspaceSource, /@submit="importSelectedBookFile"/)
     assert.match(readerWorkspaceSource, /@cancel="closeBookImport"/)
-    assert.match(readerWorkspaceSource, /await appendImportedPrototypeBook\(importedBook\)/)
+    assert.match(readerWorkspaceSource, /await appendImportedBook\(importedBook\)/)
     assert.match(readerWorkspaceSource, /activateImportedBook\(importedBook,\s*result\.books\)/)
     assert.match(readerWorkspaceSource, /activateTemporaryImportedBook\(importedBook,\s*result\.books\)/)
     assert.match(readerWorkspaceSource, /已临时导入，但无法保存到本地书架/)
@@ -689,9 +679,9 @@ describe('reader workspace word definition panel contract', () => {
     assert.match(bookImportPanelSource, /accept="\.pdf,\.epub,application\/pdf,application\/epub\+zip"/)
     assert.match(bookImportPanelSource, /book-import-title-input/)
     assert.match(bookImportPanelSource, /defineEmits\(\[[\s\S]*'update:title'[\s\S]*'select-file'[\s\S]*'submit'[\s\S]*'cancel'[\s\S]*\]\)/)
-    assert.match(prototypeStyleSource, /\.prototype-book-import-panel/)
-    assert.match(prototypeStyleSource, /\.sidebar-import-button/)
-    assert.match(prototypeStyleSource, /\.book-delete-button/)
+    assert.match(workspaceStyleSource, /\.workspace-book-import-panel/)
+    assert.match(workspaceStyleSource, /\.sidebar-import-button/)
+    assert.match(workspaceStyleSource, /\.book-delete-button/)
     assert.doesNotMatch(bookImportPanelSource, /难度/)
     assert.doesNotMatch(bookImportPanelSource, /备注/)
   })
@@ -702,20 +692,20 @@ describe('reader workspace word definition panel contract', () => {
     assert.match(pasteEditorSource, /paste-editor-textarea/)
     assert.match(pasteEditorSource, /paste-editor-actions/)
     assert.match(pasteEditorSource, /defineEmits\(\[[\s\S]*'update:modelValue'[\s\S]*'submit'[\s\S]*'cancel'[\s\S]*'read-clipboard'[\s\S]*\]\)/)
-    assert.match(prototypeStyleSource, /\.prototype-paste-editor/)
-    assert.match(prototypeStyleSource, /\.paste-editor-textarea/)
-    assert.match(prototypeStyleSource, /\.paste-editor-actions/)
+    assert.match(workspaceStyleSource, /\.workspace-paste-editor/)
+    assert.match(workspaceStyleSource, /\.paste-editor-textarea/)
+    assert.match(workspaceStyleSource, /\.paste-editor-actions/)
   })
 
   it('renders a reader workspace toolbar paste action with page-level feedback', () => {
     assert.match(topbarSource, /pasteMessage/)
     assert.match(topbarSource, /粘贴文章/)
     assert.match(topbarSource, /paste-article/)
-    assert.match(topbarSource, /prototype-paste-message/)
+    assert.match(topbarSource, /workspace-paste-message/)
     assert.match(topbarSource, /defineEmits\(\[[\s\S]*'paste-article'[\s\S]*\]\)/)
     assert.match(readerWorkspaceSource, /:paste-message="pasteArticleMessage"/)
     assert.match(readerWorkspaceSource, /:paste-message-type="pasteArticleMessageType"/)
-    assert.match(prototypeStyleSource, /\.prototype-paste-message/)
+    assert.match(workspaceStyleSource, /\.workspace-paste-message/)
   })
 
   it('renders highlighter controls without mixing marking mode and visibility', () => {
@@ -761,8 +751,8 @@ describe('reader workspace word definition panel contract', () => {
     assert.match(readingPaperSource, /@click="handleSentenceClick\(sentence,\s*paragraph\)"/)
     assert.match(readingPaperSource, /@click\.stop="\$emit\('select-word'/)
 
-    assert.match(prototypeStyleSource, /\.sentence-translation-text/)
-    assert.match(prototypeStyleSource, /\.translate-paragraph-button/)
+    assert.match(workspaceStyleSource, /\.sentence-translation-text/)
+    assert.match(workspaceStyleSource, /\.translate-paragraph-button/)
   })
 
   it('lets double click show sentence translation without breaking word clicks', () => {
@@ -776,14 +766,14 @@ describe('reader workspace word definition panel contract', () => {
   })
 
   it('styles reader workspace highlighter controls and color variants', () => {
-    assert.match(prototypeStyleSource, /\.highlight-color-swatches/)
-    assert.match(prototypeStyleSource, /\.highlight-color-button/)
-    assert.match(prototypeStyleSource, /\.highlight-clear-button/)
-    assert.match(prototypeStyleSource, /\.sentence-highlight-yellow/)
-    assert.match(prototypeStyleSource, /\.sentence-highlight-green/)
-    assert.match(prototypeStyleSource, /\.sentence-highlight-blue/)
-    assert.match(prototypeStyleSource, /\.sentence-highlight-pink/)
-    assert.match(prototypeStyleSource, /\.sentence-highlight-purple/)
-    assert.match(prototypeStyleSource, /\.sentence-highlight\.is-highlight-mode/)
+    assert.match(workspaceStyleSource, /\.highlight-color-swatches/)
+    assert.match(workspaceStyleSource, /\.highlight-color-button/)
+    assert.match(workspaceStyleSource, /\.highlight-clear-button/)
+    assert.match(workspaceStyleSource, /\.sentence-highlight-yellow/)
+    assert.match(workspaceStyleSource, /\.sentence-highlight-green/)
+    assert.match(workspaceStyleSource, /\.sentence-highlight-blue/)
+    assert.match(workspaceStyleSource, /\.sentence-highlight-pink/)
+    assert.match(workspaceStyleSource, /\.sentence-highlight-purple/)
+    assert.match(workspaceStyleSource, /\.sentence-highlight\.is-highlight-mode/)
   })
 })

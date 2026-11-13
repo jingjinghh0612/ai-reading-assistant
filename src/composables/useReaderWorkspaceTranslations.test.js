@@ -73,7 +73,7 @@ describe('useReaderWorkspaceTranslations', () => {
   it('loads paragraph and sentence translations into display paragraphs', async () => {
     const { paragraphs, requests, savedTranslations, translations } = createTranslationFixture()
 
-    await translations.translatePrototypeParagraph('p1')
+    await translations.translateParagraph('p1')
 
     assert.deepEqual(requests[0], {
       text: 'First sentence. Second sentence.',
@@ -89,7 +89,7 @@ describe('useReaderWorkspaceTranslations', () => {
       'paragraph translation for First sentence. Second sentence.',
     )
 
-    await translations.selectPrototypeSentence({
+    await translations.selectSentence({
       sentence: paragraphs.value[0].sentences[0],
       paragraph: paragraphs.value[0],
     })
@@ -112,12 +112,12 @@ describe('useReaderWorkspaceTranslations', () => {
       ],
     })
 
-    await translations.translatePrototypeParagraph('p1')
+    await translations.translateParagraph('p1')
 
     assert.equal(requests.length, 0)
     assert.equal(translations.displayParagraphs.value[0].translation, 'cached paragraph translation')
 
-    await translations.retryPrototypeTranslation('p1')
+    await translations.retryParagraphTranslation('p1')
 
     assert.equal(requests.length, 1)
     assert.equal(
@@ -132,8 +132,8 @@ describe('useReaderWorkspaceTranslations', () => {
       requestTranslation: () => deferred.promise,
     })
 
-    const loadingPromise = translations.loadPrototypeParagraphTranslation(paragraphs.value[0])
-    translations.clearPrototypeTranslationState()
+    const loadingPromise = translations.loadParagraphTranslation(paragraphs.value[0])
+    translations.clearTranslationState()
 
     deferred.resolve({ translation: 'stale paragraph translation' })
     await loadingPromise

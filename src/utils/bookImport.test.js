@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict'
 import { beforeEach, describe, it } from 'node:test'
 import {
-  IMPORTED_PROTOTYPE_BOOKS_STORAGE_KEY,
-  appendImportedPrototypeBook,
-  createImportedPrototypeBookFromText,
-  getImportedPrototypeChapterContentById,
-  loadImportedPrototypeBooks,
-  removeImportedPrototypeBook,
-  saveImportedPrototypeBooks,
-} from './prototypeBookImport.js'
+  LEGACY_IMPORTED_BOOKS_STORAGE_KEY,
+  appendImportedBook,
+  createImportedBookFromText,
+  getImportedChapterContentById,
+  loadImportedBooks,
+  removeImportedBook,
+  saveImportedBooks,
+} from './bookImport.js'
 
 function installLocalStorage() {
   const store = new Map()
@@ -149,14 +149,14 @@ function installIndexedDB() {
   }
 }
 
-describe('prototype book import utilities', () => {
+describe('book import utilities', () => {
   beforeEach(() => {
     installLocalStorage()
     installIndexedDB()
   })
 
   it('creates a real local book with chapters from imported file text', () => {
-    const book = createImportedPrototypeBookFromText({
+    const book = createImportedBookFromText({
       id: 'imported-book-1',
       title: 'Alice Notes',
       sourceType: 'epub',
@@ -181,7 +181,7 @@ describe('prototype book import utilities', () => {
   })
 
   it('uses one imported chapter when the file has no explicit headings', () => {
-    const book = createImportedPrototypeBookFromText({
+    const book = createImportedBookFromText({
       id: 'imported-book-2',
       title: 'Plain PDF',
       sourceType: 'pdf',
@@ -199,7 +199,7 @@ describe('prototype book import utilities', () => {
   })
 
   it('keeps readable single-line paragraph breaks in imported books', () => {
-    const book = createImportedPrototypeBookFromText({
+    const book = createImportedBookFromText({
       id: 'imported-line-paragraphs',
       title: 'Line Paragraphs',
       sourceType: 'epub',
@@ -221,7 +221,7 @@ describe('prototype book import utilities', () => {
   })
 
   it('persists imported books in IndexedDB without depending on localStorage capacity', async () => {
-    const book = createImportedPrototypeBookFromText({
+    const book = createImportedBookFromText({
       id: 'imported-book-3',
       title: 'Stored Book',
       sourceType: 'epub',
@@ -231,18 +231,18 @@ describe('prototype book import utilities', () => {
 
     localStorage.setThrowOnSet(true)
 
-    const saved = await saveImportedPrototypeBooks([book])
-    const loaded = await loadImportedPrototypeBooks()
-    const contentById = getImportedPrototypeChapterContentById(loaded)
+    const saved = await saveImportedBooks([book])
+    const loaded = await loadImportedBooks()
+    const contentById = getImportedChapterContentById(loaded)
 
     assert.equal(saved, true)
-    assert.equal(localStorage.getItem(IMPORTED_PROTOTYPE_BOOKS_STORAGE_KEY), null)
+    assert.equal(localStorage.getItem(LEGACY_IMPORTED_BOOKS_STORAGE_KEY), null)
     assert.equal(loaded[0].title, 'Stored Book')
     assert.equal(contentById['imported-book-3-chapter-1'].title, 'Chapter 1')
   })
 
   it('migrates legacy localStorage imported books into IndexedDB on first load', async () => {
-    const book = createImportedPrototypeBookFromText({
+    const book = createImportedBookFromText({
       id: 'legacy-imported-book',
       title: 'Legacy Book',
       sourceType: 'pdf',
@@ -250,13 +250,13 @@ describe('prototype book import utilities', () => {
       text: 'Legacy stored text.',
     })
 
-    localStorage.setItem(IMPORTED_PROTOTYPE_BOOKS_STORAGE_KEY, JSON.stringify([book]))
+    localStorage.setItem(LEGACY_IMPORTED_BOOKS_STORAGE_KEY, JSON.stringify([book]))
 
-    const loaded = await loadImportedPrototypeBooks()
+    const loaded = await loadImportedBooks()
 
-    localStorage.removeItem(IMPORTED_PROTOTYPE_BOOKS_STORAGE_KEY)
+    localStorage.removeItem(LEGACY_IMPORTED_BOOKS_STORAGE_KEY)
 
-    const loadedAfterLegacyRemoval = await loadImportedPrototypeBooks()
+    const loadedAfterLegacyRemoval = await loadImportedBooks()
 
     assert.equal(loaded[0].id, 'legacy-imported-book')
     assert.deepEqual(
@@ -314,9 +314,9 @@ describe('prototype book import utilities', () => {
       },
     }
 
-    localStorage.setItem(IMPORTED_PROTOTYPE_BOOKS_STORAGE_KEY, JSON.stringify([staleBook]))
+    localStorage.setItem(LEGACY_IMPORTED_BOOKS_STORAGE_KEY, JSON.stringify([staleBook]))
 
-    const loaded = await loadImportedPrototypeBooks()
+    const loaded = await loadImportedBooks()
     const sentence =
       loaded[0].chapterContents['legacy-hex-entities-chapter-1'].paragraphs[0].sentences[0]
 
@@ -325,14 +325,14 @@ describe('prototype book import utilities', () => {
   })
 
   it('prepends a new imported book in IndexedDB when localStorage cannot grow', async () => {
-    const firstBook = createImportedPrototypeBookFromText({
+    const firstBook = createImportedBookFromText({
       id: 'imported-first',
       title: 'First Book',
       sourceType: 'pdf',
       fileName: 'first.pdf',
       text: 'First text.',
     })
-    const nextBook = createImportedPrototypeBookFromText({
+    const nextBook = createImportedBookFromText({
       id: 'imported-next',
       title: 'Next Book',
       sourceType: 'pdf',
@@ -340,10 +340,10 @@ describe('prototype book import utilities', () => {
       text: 'Next text.',
     })
 
-    await saveImportedPrototypeBooks([firstBook])
+    await saveImportedBooks([firstBook])
     localStorage.setThrowOnSet(true)
 
-    const result = await appendImportedPrototypeBook(nextBook)
+    const result = await appendImportedBook(nextBook)
 
     assert.equal(result.ok, true)
     assert.deepEqual(
@@ -353,14 +353,14 @@ describe('prototype book import utilities', () => {
   })
 
   it('deletes an imported book from IndexedDB without touching the remaining books', async () => {
-    const firstBook = createImportedPrototypeBookFromText({
+    const firstBook = createImportedBookFromText({
       id: 'imported-delete-first',
       title: 'Delete First',
       sourceType: 'pdf',
       fileName: 'delete-first.pdf',
       text: 'First book text.',
     })
-    const secondBook = createImportedPrototypeBookFromText({
+    const secondBook = createImportedBookFromText({
       id: 'imported-delete-second',
       title: 'Delete Second',
       sourceType: 'epub',
@@ -368,10 +368,10 @@ describe('prototype book import utilities', () => {
       text: 'Second book text.',
     })
 
-    await saveImportedPrototypeBooks([firstBook, secondBook])
+    await saveImportedBooks([firstBook, secondBook])
 
-    const result = await removeImportedPrototypeBook('imported-delete-first')
-    const storedBooks = await loadImportedPrototypeBooks()
+    const result = await removeImportedBook('imported-delete-first')
+    const storedBooks = await loadImportedBooks()
 
     assert.equal(result.deleted, true)
     assert.deepEqual(
@@ -383,7 +383,7 @@ describe('prototype book import utilities', () => {
       ['imported-delete-second'],
     )
 
-    const missingResult = await removeImportedPrototypeBook('missing-book')
+    const missingResult = await removeImportedBook('missing-book')
 
     assert.equal(missingResult.deleted, false)
     assert.deepEqual(
@@ -395,7 +395,7 @@ describe('prototype book import utilities', () => {
   it('reports storage failures when IndexedDB is unavailable', async () => {
     delete globalThis.indexedDB
 
-    const book = createImportedPrototypeBookFromText({
+    const book = createImportedBookFromText({
       id: 'imported-storage-failure',
       title: 'Storage Failure',
       sourceType: 'pdf',
@@ -403,8 +403,8 @@ describe('prototype book import utilities', () => {
       text: 'Failure text.',
     })
 
-    const appendResult = await appendImportedPrototypeBook(book)
-    const deleteResult = await removeImportedPrototypeBook('imported-storage-failure')
+    const appendResult = await appendImportedBook(book)
+    const deleteResult = await removeImportedBook('imported-storage-failure')
 
     assert.equal(appendResult.ok, false)
     assert.deepEqual(appendResult.books, [])

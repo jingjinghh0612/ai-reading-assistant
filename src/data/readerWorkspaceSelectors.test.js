@@ -1,23 +1,23 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { prototypeBooks, prototypeChapterContent, prototypeDictionary } from './readerPrototypeData.js'
-import * as selectors from './readerPrototypeSelectors.js'
+import { builtInBooks, builtInChapterContent, builtInDictionary } from './builtInReaderData.js'
+import * as selectors from './readerWorkspaceSelectors.js'
 import {
-  findPrototypeBook,
-  findPrototypeBookChapterContent,
-  findPrototypeChapter,
-  findPrototypeChapterContent,
-  getPrototypeChapters,
-  getPrototypeParagraphs,
-  getPrototypeReadingProgress,
+  findBook,
+  findBookChapterContent,
+  findChapter,
+  findChapterContent,
+  getChapters,
+  getChapterParagraphs,
+  getReadingProgress,
   mapDictionaryEntryToWordPanel,
-  mapAiWordDetailToWordPanel,
-  getPrototypeLocalParagraphTranslation,
-  getPrototypeParagraphSourceText,
-  createPastedPrototypeChapterContent,
-} from './readerPrototypeSelectors.js'
+  mapWordLookupDetailToWordPanel,
+  getLocalParagraphTranslation,
+  getParagraphSourceText,
+  createPastedChapterContent,
+} from './readerWorkspaceSelectors.js'
 
-function flattenPrototypeTokens(chapterContent) {
+function flattenTokens(chapterContent) {
   return chapterContent.paragraphs.flatMap((paragraph) =>
     paragraph.sentences.flatMap((sentence) => sentence.tokens),
   )
@@ -25,21 +25,21 @@ function flattenPrototypeTokens(chapterContent) {
 
 describe('reader workspace selectors', () => {
   it('selects the active book and falls back to the first book', () => {
-    assert.equal(findPrototypeBook(prototypeBooks, 'quiet-observatory').title, 'The Quiet Observatory')
-    assert.equal(findPrototypeBook(prototypeBooks, 'missing-book').id, prototypeBooks[0].id)
-    assert.equal(findPrototypeBook([], 'missing-book'), null)
+    assert.equal(findBook(builtInBooks, 'quiet-observatory').title, 'The Quiet Observatory')
+    assert.equal(findBook(builtInBooks, 'missing-book').id, builtInBooks[0].id)
+    assert.equal(findBook([], 'missing-book'), null)
   })
 
   it('derives chapters from the selected book', () => {
-    const book = findPrototypeBook(prototypeBooks, 'quiet-observatory')
+    const book = findBook(builtInBooks, 'quiet-observatory')
 
-    assert.equal(getPrototypeChapters(book), book.chapters)
-    assert.deepEqual(getPrototypeChapters(null), [])
+    assert.equal(getChapters(book), book.chapters)
+    assert.deepEqual(getChapters(null), [])
   })
 
   it('keeps the default reader workspace shelf focused on books with local chapter content', () => {
     assert.deepEqual(
-      prototypeBooks.map((book) => book.id),
+      builtInBooks.map((book) => book.id),
       ['quiet-observatory'],
     )
   })
@@ -48,14 +48,14 @@ describe('reader workspace selectors', () => {
     const fallbackChapterId = 'chapter-4'
 
     assert.equal(
-      findPrototypeChapterContent(prototypeChapterContent, 'chapter-4', fallbackChapterId),
-      prototypeChapterContent['chapter-4'],
+      findChapterContent(builtInChapterContent, 'chapter-4', fallbackChapterId),
+      builtInChapterContent['chapter-4'],
     )
     assert.equal(
-      findPrototypeChapterContent(prototypeChapterContent, 'missing-chapter', fallbackChapterId),
-      prototypeChapterContent['chapter-4'],
+      findChapterContent(builtInChapterContent, 'missing-chapter', fallbackChapterId),
+      builtInChapterContent['chapter-4'],
     )
-    assert.equal(findPrototypeChapterContent({}, 'missing-chapter', fallbackChapterId), null)
+    assert.equal(findChapterContent({}, 'missing-chapter', fallbackChapterId), null)
   })
 
   it('selects chapter content only from the active book', () => {
@@ -77,33 +77,33 @@ describe('reader workspace selectors', () => {
       paragraphs: [],
     }
     const chapterContentById = {
-      ...prototypeChapterContent,
+      ...builtInChapterContent,
       'imported-chapter-1': importedContent,
     }
 
     assert.equal(
-      findPrototypeBookChapterContent(chapterContentById, prototypeBooks[0], 'chapter-5', 'chapter-4'),
-      prototypeChapterContent['chapter-5'],
+      findBookChapterContent(chapterContentById, builtInBooks[0], 'chapter-5', 'chapter-4'),
+      builtInChapterContent['chapter-5'],
     )
     assert.equal(
-      findPrototypeBookChapterContent(chapterContentById, prototypeBooks[0], 'missing-chapter', 'chapter-4'),
-      prototypeChapterContent['chapter-4'],
+      findBookChapterContent(chapterContentById, builtInBooks[0], 'missing-chapter', 'chapter-4'),
+      builtInChapterContent['chapter-4'],
     )
     assert.equal(
-      findPrototypeBookChapterContent(chapterContentById, importedBook, 'missing-chapter', 'chapter-4'),
+      findBookChapterContent(chapterContentById, importedBook, 'missing-chapter', 'chapter-4'),
       importedContent,
     )
     assert.equal(
-      findPrototypeBookChapterContent(chapterContentById, emptyBook, 'chapter-4', 'chapter-4'),
+      findBookChapterContent(chapterContentById, emptyBook, 'chapter-4', 'chapter-4'),
       null,
     )
   })
 
   it('provides local reading content for every shelf chapter', () => {
-    const book = findPrototypeBook(prototypeBooks, 'quiet-observatory')
+    const book = findBook(builtInBooks, 'quiet-observatory')
 
     for (const chapter of book.chapters) {
-      const content = prototypeChapterContent[chapter.id]
+      const content = builtInChapterContent[chapter.id]
 
       assert.ok(content, `${chapter.id} should have local reading content`)
       assert.equal(content.id, chapter.id)
@@ -127,27 +127,27 @@ describe('reader workspace selectors', () => {
   })
 
   it('selects the active chapter and falls back to the chapter content id', () => {
-    const book = findPrototypeBook(prototypeBooks, 'quiet-observatory')
-    const chapters = getPrototypeChapters(book)
-    const chapterContent = findPrototypeChapterContent(prototypeChapterContent, 'chapter-4', 'chapter-4')
+    const book = findBook(builtInBooks, 'quiet-observatory')
+    const chapters = getChapters(book)
+    const chapterContent = findChapterContent(builtInChapterContent, 'chapter-4', 'chapter-4')
 
-    assert.equal(findPrototypeChapter(chapters, 'chapter-5', chapterContent).id, 'chapter-5')
-    assert.equal(findPrototypeChapter(chapters, 'missing-chapter', chapterContent).id, 'chapter-4')
-    assert.equal(findPrototypeChapter([], 'missing-chapter', chapterContent), null)
+    assert.equal(findChapter(chapters, 'chapter-5', chapterContent).id, 'chapter-5')
+    assert.equal(findChapter(chapters, 'missing-chapter', chapterContent).id, 'chapter-4')
+    assert.equal(findChapter([], 'missing-chapter', chapterContent), null)
   })
 
   it('derives paragraphs and reading progress without page-specific logic', () => {
-    const book = findPrototypeBook(prototypeBooks, 'quiet-observatory')
-    const chapter = findPrototypeChapter(book.chapters, 'chapter-4', prototypeChapterContent['chapter-4'])
+    const book = findBook(builtInBooks, 'quiet-observatory')
+    const chapter = findChapter(book.chapters, 'chapter-4', builtInChapterContent['chapter-4'])
 
-    assert.equal(getPrototypeParagraphs(prototypeChapterContent['chapter-4']).length, 3)
-    assert.deepEqual(getPrototypeParagraphs(null), [])
-    assert.deepEqual(getPrototypeReadingProgress(book, chapter), { book: 64, chapter: 72 })
-    assert.deepEqual(getPrototypeReadingProgress(null, null), { book: 0, chapter: 0 })
+    assert.equal(getChapterParagraphs(builtInChapterContent['chapter-4']).length, 3)
+    assert.deepEqual(getChapterParagraphs(null), [])
+    assert.deepEqual(getReadingProgress(book, chapter), { book: 64, chapter: 72 })
+    assert.deepEqual(getReadingProgress(null, null), { book: 0, chapter: 0 })
   })
 
   it('uses dictionary ids as word keys while preserving surface forms', () => {
-    const tokens = flattenPrototypeTokens(prototypeChapterContent['chapter-4'])
+    const tokens = flattenTokens(builtInChapterContent['chapter-4'])
     const plannedToken = tokens.find((token) => token.surface === 'planned')
     const copiedToken = tokens.find((token) => token.surface === 'copied')
 
@@ -157,25 +157,25 @@ describe('reader workspace selectors', () => {
     assert.equal(copiedToken.wordKey, 'copy')
     assert.equal(copiedToken.lemma, 'copy')
     assert.equal(copiedToken.text, 'copied')
-    assert.ok(prototypeDictionary.plan)
-    assert.ok(prototypeDictionary.copy)
-    assert.equal(prototypeDictionary.planned, undefined)
-    assert.equal(prototypeDictionary.copied, undefined)
+    assert.ok(builtInDictionary.plan)
+    assert.ok(builtInDictionary.copy)
+    assert.equal(builtInDictionary.planned, undefined)
+    assert.equal(builtInDictionary.copied, undefined)
   })
 
   it('maps dictionary entries to the current word panel contract', () => {
     assert.deepEqual(mapDictionaryEntryToWordPanel(null), null)
-    assert.deepEqual(mapDictionaryEntryToWordPanel(prototypeDictionary.plan), {
+    assert.deepEqual(mapDictionaryEntryToWordPanel(builtInDictionary.plan), {
       word: 'planned',
       lemma: 'plan',
-      phonetic: prototypeDictionary.plan.phonetic,
+      phonetic: builtInDictionary.plan.phonetic,
       partOfSpeech: 'v.',
-      meaning: prototypeDictionary.plan.meanings[0].zh,
-      explanation: prototypeDictionary.plan.explanation,
+      meaning: builtInDictionary.plan.meanings[0].zh,
+      explanation: builtInDictionary.plan.explanation,
       example: 'She planned to finish the book before dinner.',
-      exampleTranslation: prototypeDictionary.plan.examples[0].zh,
+      exampleTranslation: builtInDictionary.plan.examples[0].zh,
       forms: ['plan', 'plans', 'planned', 'planning'],
-      sourceSentence: prototypeDictionary.plan.sourceSentence,
+      sourceSentence: builtInDictionary.plan.sourceSentence,
       sourceTranslation: '',
     })
     assert.deepEqual(
@@ -201,11 +201,11 @@ describe('reader workspace selectors', () => {
   })
 
   it('prepares paragraph text and local translations for AI translation fallback', () => {
-    assert.equal(typeof getPrototypeLocalParagraphTranslation, 'function')
-    assert.equal(typeof getPrototypeParagraphSourceText, 'function')
+    assert.equal(typeof getLocalParagraphTranslation, 'function')
+    assert.equal(typeof getParagraphSourceText, 'function')
 
     assert.equal(
-      getPrototypeLocalParagraphTranslation({
+      getLocalParagraphTranslation({
         translation: 'Local paragraph translation.',
         sentences: [
           {
@@ -217,7 +217,7 @@ describe('reader workspace selectors', () => {
       'Local paragraph translation.',
     )
     assert.equal(
-      getPrototypeLocalParagraphTranslation({
+      getLocalParagraphTranslation({
         translation: '粘贴文章暂未生成译文。',
         sentences: [
           {
@@ -233,14 +233,14 @@ describe('reader workspace selectors', () => {
       '第一句译文。 第二句译文。',
     )
     assert.equal(
-      getPrototypeLocalParagraphTranslation({
+      getLocalParagraphTranslation({
         translation: '导入书籍暂未生成译文。',
         sentences: [{ text: 'Imported text without a translation.', translation: '' }],
       }),
       '',
     )
     assert.equal(
-      getPrototypeParagraphSourceText({
+      getParagraphSourceText({
         text: 'Ignored paragraph text.',
         sentences: [{ text: 'First sentence.' }, { text: 'Second sentence.' }],
       }),
@@ -249,44 +249,44 @@ describe('reader workspace selectors', () => {
   })
 
   it('prepares sentence text and local translations for inline sentence translation', () => {
-    assert.equal(typeof selectors.getPrototypeSentenceSourceText, 'function')
-    assert.equal(typeof selectors.getPrototypeLocalSentenceTranslation, 'function')
-    assert.equal(typeof selectors.getPrototypeTranslationStateKey, 'function')
+    assert.equal(typeof selectors.getSentenceSourceText, 'function')
+    assert.equal(typeof selectors.getLocalSentenceTranslation, 'function')
+    assert.equal(typeof selectors.createTranslationStateKey, 'function')
 
     assert.equal(
-      selectors.getPrototypeSentenceSourceText({
+      selectors.getSentenceSourceText({
         text: '  The room became quiet.  ',
       }),
       'The room became quiet.',
     )
-    assert.equal(selectors.getPrototypeSentenceSourceText(null), '')
+    assert.equal(selectors.getSentenceSourceText(null), '')
     assert.equal(
-      selectors.getPrototypeLocalSentenceTranslation({
+      selectors.getLocalSentenceTranslation({
         translation: ' 房间安静下来。 ',
       }),
       '房间安静下来。',
     )
     assert.equal(
-      selectors.getPrototypeLocalSentenceTranslation({
+      selectors.getLocalSentenceTranslation({
         translation: '暂无译文',
       }),
       '',
     )
     assert.equal(
-      selectors.getPrototypeTranslationStateKey('chapter-4', 'p1', 'p1-s2'),
+      selectors.createTranslationStateKey('chapter-4', 'p1', 'p1-s2'),
       'chapter-4:p1:p1-s2',
     )
     assert.equal(
-      selectors.getPrototypeTranslationStateKey('', 'p1', 'p1-s2'),
+      selectors.createTranslationStateKey('', 'p1', 'p1-s2'),
       'chapter:p1:p1-s2',
     )
   })
 
-  it('maps AI word explanations to the reader workspace word panel contract with sentence context', () => {
-    assert.equal(typeof mapAiWordDetailToWordPanel, 'function')
+  it('maps word lookup results to the reader workspace word panel contract with sentence context', () => {
+    assert.equal(typeof mapWordLookupDetailToWordPanel, 'function')
 
     assert.deepEqual(
-      mapAiWordDetailToWordPanel(
+      mapWordLookupDetailToWordPanel(
         {
           word: 'curious',
           meaning: '好奇的',
@@ -313,13 +313,12 @@ describe('reader workspace selectors', () => {
         forms: [],
         sourceSentence: 'Curious readers notice patterns.',
         sourceTranslation: '好奇的读者会注意到规律。',
-        isAiGenerated: true,
       },
     )
   })
 
   it('creates temporary reader workspace chapter content from pasted plain text', () => {
-    const pastedChapter = createPastedPrototypeChapterContent(
+    const pastedChapter = createPastedChapterContent(
       'First pasted sentence. Second sentence!\n\nAnother paragraph asks why?',
     )
 
@@ -375,7 +374,7 @@ describe('reader workspace selectors', () => {
   })
 
   it('keeps readable single-line paragraph breaks in pasted plain text', () => {
-    const pastedChapter = createPastedPrototypeChapterContent(
+    const pastedChapter = createPastedChapterContent(
       'First pasted paragraph ends here.\nSecond pasted paragraph asks why?\nThis pasted line wraps without ending\nand should stay together.',
     )
 
@@ -417,9 +416,9 @@ describe('reader workspace selectors', () => {
   })
 
   it('maps a clicked token to the word panel with its sentence context', () => {
-    assert.equal(typeof selectors.getPrototypeWordContext, 'function')
+    assert.equal(typeof selectors.getWordContext, 'function')
 
-    const clickedContext = selectors.getPrototypeWordContext(prototypeChapterContent['chapter-5'], {
+    const clickedContext = selectors.getWordContext(builtInChapterContent['chapter-5'], {
       wordKey: 'reveal',
       surface: 'revealed',
       sentenceId: 'chapter-5-p2-s1',
@@ -431,18 +430,18 @@ describe('reader workspace selectors', () => {
       paragraphId: 'p2',
       sentenceId: 'chapter-5-p2-s1',
       sourceSentence: 'The letter did not explain everything; it only revealed a small plan her grandfather had made.',
-      sourceTranslation: prototypeChapterContent['chapter-5'].paragraphs[1].sentences[0].translation,
+      sourceTranslation: builtInChapterContent['chapter-5'].paragraphs[1].sentences[0].translation,
     })
 
-    assert.deepEqual(mapDictionaryEntryToWordPanel(prototypeDictionary.reveal, clickedContext), {
+    assert.deepEqual(mapDictionaryEntryToWordPanel(builtInDictionary.reveal, clickedContext), {
       word: 'revealed',
       lemma: 'reveal',
-      phonetic: prototypeDictionary.reveal.phonetic,
+      phonetic: builtInDictionary.reveal.phonetic,
       partOfSpeech: 'v.',
-      meaning: prototypeDictionary.reveal.meanings[0].zh,
-      explanation: prototypeDictionary.reveal.explanation,
-      example: prototypeDictionary.reveal.examples[0].en,
-      exampleTranslation: prototypeDictionary.reveal.examples[0].zh,
+      meaning: builtInDictionary.reveal.meanings[0].zh,
+      explanation: builtInDictionary.reveal.explanation,
+      example: builtInDictionary.reveal.examples[0].en,
+      exampleTranslation: builtInDictionary.reveal.examples[0].zh,
       forms: ['reveal', 'reveals', 'revealed', 'revealing'],
       sourceSentence: clickedContext.sourceSentence,
       sourceTranslation: clickedContext.sourceTranslation,
@@ -450,9 +449,9 @@ describe('reader workspace selectors', () => {
   })
 
   it('creates clickable word tokens from unstructured reader workspace text', () => {
-    assert.equal(typeof selectors.getPrototypeClickableSentenceTokens, 'function')
+    assert.equal(typeof selectors.getClickableSentenceTokens, 'function')
 
-    const [firstWord, firstGap, secondWord] = selectors.getPrototypeClickableSentenceTokens({
+    const [firstWord, firstGap, secondWord] = selectors.getClickableSentenceTokens({
       id: 's1',
       tokens: [
         {
@@ -487,7 +486,7 @@ describe('reader workspace selectors', () => {
   })
 
   it('preserves whitespace around generated clickable words', () => {
-    const tokens = selectors.getPrototypeClickableSentenceTokens({
+    const tokens = selectors.getClickableSentenceTokens({
       id: 's1',
       tokens: [
         {
@@ -516,7 +515,7 @@ describe('reader workspace selectors', () => {
   })
 
   it('keeps source sentence context for generated clickable words', () => {
-    const clickedContext = selectors.getPrototypeWordContext(prototypeChapterContent['chapter-3'], {
+    const clickedContext = selectors.getWordContext(builtInChapterContent['chapter-3'], {
       wordKey: 'garden',
       surface: 'garden',
       sentenceId: 'chapter-3-p1-s1',
@@ -529,16 +528,16 @@ describe('reader workspace selectors', () => {
       sentenceId: 'chapter-3-p1-s1',
       sourceSentence:
         'The garden gate had been locked for years, but Clara could still see a narrow path through the fence.',
-      sourceTranslation: prototypeChapterContent['chapter-3'].paragraphs[0].sentences[0].translation,
+      sourceTranslation: builtInChapterContent['chapter-3'].paragraphs[0].sentences[0].translation,
     })
   })
 
   it('derives the current chapter vocabulary from structured word tokens', () => {
-    assert.equal(typeof selectors.getPrototypeChapterVocabulary, 'function')
+    assert.equal(typeof selectors.getChapterVocabulary, 'function')
 
-    const vocabulary = selectors.getPrototypeChapterVocabulary(
-      prototypeChapterContent['chapter-4'],
-      prototypeDictionary,
+    const vocabulary = selectors.getChapterVocabulary(
+      builtInChapterContent['chapter-4'],
+      builtInDictionary,
       ['plan'],
     )
 
@@ -551,7 +550,7 @@ describe('reader workspace selectors', () => {
       word: 'planned',
       lemma: 'plan',
       partOfSpeech: 'v.',
-      meaning: prototypeDictionary.plan.meanings[0].zh,
+      meaning: builtInDictionary.plan.meanings[0].zh,
       count: 1,
       isAdded: true,
       selection: {
@@ -591,13 +590,13 @@ describe('reader workspace selectors', () => {
       ],
     }
 
-    assert.deepEqual(selectors.getPrototypeChapterVocabulary(duplicateChapter, prototypeDictionary), [
+    assert.deepEqual(selectors.getChapterVocabulary(duplicateChapter, builtInDictionary), [
       {
         wordKey: 'plan',
         word: 'planned',
         lemma: 'plan',
         partOfSpeech: 'v.',
-        meaning: prototypeDictionary.plan.meanings[0].zh,
+        meaning: builtInDictionary.plan.meanings[0].zh,
         count: 2,
         isAdded: false,
         selection: {
@@ -609,25 +608,25 @@ describe('reader workspace selectors', () => {
     ])
   })
 
-  it('derives a local mock wordbook from added word keys', () => {
-    assert.equal(typeof selectors.getPrototypeMockWordbook, 'function')
+  it('derives a session vocabulary from the words added during the session', () => {
+    assert.equal(typeof selectors.getSessionVocabulary, 'function')
 
-    const wordbook = selectors.getPrototypeMockWordbook(
-      prototypeChapterContent['chapter-4'],
-      prototypeDictionary,
+    const sessionVocabulary = selectors.getSessionVocabulary(
+      builtInChapterContent['chapter-4'],
+      builtInDictionary,
       ['copy', 'plan'],
     )
 
     assert.deepEqual(
-      wordbook.map((item) => item.wordKey),
+      sessionVocabulary.map((item) => item.wordKey),
       ['copy', 'plan'],
     )
-    assert.deepEqual(wordbook[0], {
+    assert.deepEqual(sessionVocabulary[0], {
       wordKey: 'copy',
       word: 'copied',
       lemma: 'copy',
       partOfSpeech: 'v.',
-      meaning: prototypeDictionary.copy.meanings[0].zh,
+      meaning: builtInDictionary.copy.meanings[0].zh,
       count: 1,
       isAdded: true,
       selection: {
@@ -636,21 +635,21 @@ describe('reader workspace selectors', () => {
         sentenceId: 'p3-s1',
       },
     })
-    assert.deepEqual(selectors.getPrototypeMockWordbook(null, prototypeDictionary, []), [])
+    assert.deepEqual(selectors.getSessionVocabulary(null, builtInDictionary, []), [])
   })
 
   describe('sentence highlight helpers', () => {
     it('derives default sentence highlights from highlighted reader workspace data', () => {
-      assert.equal(typeof selectors.getDefaultPrototypeHighlights, 'function')
+      assert.equal(typeof selectors.getDefaultHighlights, 'function')
 
-      assert.deepEqual(selectors.getDefaultPrototypeHighlights(prototypeChapterContent['chapter-4']), {
+      assert.deepEqual(selectors.getDefaultHighlights(builtInChapterContent['chapter-4']), {
         'p1-s2': 'yellow',
       })
-      assert.deepEqual(selectors.getDefaultPrototypeHighlights(prototypeChapterContent['chapter-5']), {
+      assert.deepEqual(selectors.getDefaultHighlights(builtInChapterContent['chapter-5']), {
         'chapter-5-p1-s2': 'yellow',
       })
       assert.deepEqual(
-        selectors.getDefaultPrototypeHighlights(
+        selectors.getDefaultHighlights(
           {
             paragraphs: [
               {
@@ -667,64 +666,64 @@ describe('reader workspace selectors', () => {
         ),
         { s1: 'blue' },
       )
-      assert.deepEqual(selectors.getDefaultPrototypeHighlights(null), {})
+      assert.deepEqual(selectors.getDefaultHighlights(null), {})
     })
 
     it('returns a copied highlight map for the requested chapter', () => {
-      assert.equal(typeof selectors.getPrototypeChapterHighlights, 'function')
+      assert.equal(typeof selectors.getChapterHighlights, 'function')
 
       const highlightsByChapter = {
         'chapter-4': {
           'p1-s2': 'yellow',
         },
       }
-      const chapterHighlights = selectors.getPrototypeChapterHighlights(highlightsByChapter, 'chapter-4')
+      const chapterHighlights = selectors.getChapterHighlights(highlightsByChapter, 'chapter-4')
 
       assert.deepEqual(chapterHighlights, { 'p1-s2': 'yellow' })
       assert.notEqual(chapterHighlights, highlightsByChapter['chapter-4'])
-      assert.deepEqual(selectors.getPrototypeChapterHighlights(highlightsByChapter, 'missing-chapter'), {})
-      assert.deepEqual(selectors.getPrototypeChapterHighlights(null, 'chapter-4'), {})
+      assert.deepEqual(selectors.getChapterHighlights(highlightsByChapter, 'missing-chapter'), {})
+      assert.deepEqual(selectors.getChapterHighlights(null, 'chapter-4'), {})
     })
 
     it('applies, updates, and toggles sentence highlights by color', () => {
-      assert.equal(typeof selectors.togglePrototypeSentenceHighlight, 'function')
+      assert.equal(typeof selectors.toggleSentenceHighlight, 'function')
 
       const originalHighlights = {
         'p1-s2': 'yellow',
       }
 
       assert.deepEqual(
-        selectors.togglePrototypeSentenceHighlight(originalHighlights, 'p2-s1', 'blue'),
+        selectors.toggleSentenceHighlight(originalHighlights, 'p2-s1', 'blue'),
         {
           'p1-s2': 'yellow',
           'p2-s1': 'blue',
         },
       )
       assert.deepEqual(
-        selectors.togglePrototypeSentenceHighlight(originalHighlights, 'p1-s2', 'green'),
+        selectors.toggleSentenceHighlight(originalHighlights, 'p1-s2', 'green'),
         {
           'p1-s2': 'green',
         },
       )
-      assert.deepEqual(selectors.togglePrototypeSentenceHighlight(originalHighlights, 'p1-s2', 'yellow'), {})
-      assert.deepEqual(selectors.togglePrototypeSentenceHighlight(originalHighlights, '', 'yellow'), originalHighlights)
-      assert.deepEqual(selectors.togglePrototypeSentenceHighlight(originalHighlights, 'p2-s1', ''), originalHighlights)
+      assert.deepEqual(selectors.toggleSentenceHighlight(originalHighlights, 'p1-s2', 'yellow'), {})
+      assert.deepEqual(selectors.toggleSentenceHighlight(originalHighlights, '', 'yellow'), originalHighlights)
+      assert.deepEqual(selectors.toggleSentenceHighlight(originalHighlights, 'p2-s1', ''), originalHighlights)
       assert.deepEqual(originalHighlights, { 'p1-s2': 'yellow' })
     })
 
     it('removes one sentence highlight without mutating the original map', () => {
-      assert.equal(typeof selectors.removePrototypeSentenceHighlight, 'function')
+      assert.equal(typeof selectors.removeSentenceHighlight, 'function')
 
       const originalHighlights = {
         'p1-s2': 'yellow',
         'p2-s1': 'blue',
       }
 
-      assert.deepEqual(selectors.removePrototypeSentenceHighlight(originalHighlights, 'p1-s2'), {
+      assert.deepEqual(selectors.removeSentenceHighlight(originalHighlights, 'p1-s2'), {
         'p2-s1': 'blue',
       })
-      assert.deepEqual(selectors.removePrototypeSentenceHighlight(originalHighlights, 'missing-sentence'), originalHighlights)
-      assert.deepEqual(selectors.removePrototypeSentenceHighlight(null, 'p1-s2'), {})
+      assert.deepEqual(selectors.removeSentenceHighlight(originalHighlights, 'missing-sentence'), originalHighlights)
+      assert.deepEqual(selectors.removeSentenceHighlight(null, 'p1-s2'), {})
       assert.deepEqual(originalHighlights, {
         'p1-s2': 'yellow',
         'p2-s1': 'blue',
