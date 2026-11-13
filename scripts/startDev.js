@@ -1,21 +1,25 @@
 import { spawn } from 'node:child_process'
-import { pathToFileURL } from 'node:url'
+import { createRequire } from 'node:module'
+import { dirname, join } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
-export function getNpmCommand(platform = process.platform) {
-  return platform === 'win32' ? 'npm.cmd' : 'npm'
-}
+const require = createRequire(import.meta.url)
 
-export function createProcessSpecs(npmCommand = getNpmCommand()) {
+export function createProcessSpecs() {
+  const serverEntry = fileURLToPath(new URL('../server/index.js', import.meta.url))
+  const viteEntry = join(dirname(require.resolve('vite/package.json')), 'bin', 'vite.js')
+
+  // Windows 上 spawn 无法直接执行 npm.cmd，因此用当前 Node 启动两个入口。
   return [
     {
       name: 'server',
-      command: npmCommand,
-      args: ['run', 'server'],
+      command: process.execPath,
+      args: [serverEntry],
     },
     {
       name: 'vite',
-      command: npmCommand,
-      args: ['run', 'dev'],
+      command: process.execPath,
+      args: [viteEntry, '--configLoader', 'native'],
     },
   ]
 }
