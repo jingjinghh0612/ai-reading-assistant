@@ -3,13 +3,13 @@
 
   <div v-else class="app-shell">
     <header class="app-header">
-      <div class="app-toolbar">
+      <div class="app-toolbar" :class="{ 'compact-toolbar': usesCompactToolbar }">
         <RouterLink class="brand" to="/">
           <span class="brand-mark">AI</span>
           <span>{{ t('app.brand') }}</span>
         </RouterLink>
 
-        <div class="toolbar-tools" :aria-label="t('toolbar.toolsLabel')">
+        <div v-if="!usesCompactToolbar" class="toolbar-tools" :aria-label="t('toolbar.toolsLabel')">
           <button class="toolbar-icon-button" type="button" disabled :title="t('toolbar.undo')">
             <span aria-hidden="true">Undo</span>
           </button>
@@ -29,20 +29,22 @@
 
         <nav class="nav" :aria-label="t('app.navLabel')">
           <RouterLink to="/">{{ t('nav.home') }}</RouterLink>
-          <RouterLink to="/reader">{{ t('nav.reader') }}</RouterLink>
-          <RouterLink to="/vocabulary">{{ t('nav.vocabulary') }}</RouterLink>
-          <RouterLink to="/review">{{ t('nav.review') }}</RouterLink>
+          <RouterLink v-if="!usesCompactToolbar" to="/reader">{{ t('nav.reader') }}</RouterLink>
+          <RouterLink v-if="!isVocabularyPage" to="/vocabulary">{{ t('nav.vocabulary') }}</RouterLink>
+          <RouterLink v-if="!isReviewPage" to="/review">{{ t('nav.review') }}</RouterLink>
         </nav>
 
         <div class="toolbar-actions">
-          <RouterLink class="toolbar-action" to="/reader">{{ t('toolbar.pages') }}</RouterLink>
-          <RouterLink class="toolbar-action" to="/reader">{{ t('toolbar.ask') }}</RouterLink>
-          <button class="toolbar-action" type="button" disabled :title="t('toolbar.disabledFeature')">
-            {{ t('toolbar.uploadPdf') }}
-          </button>
-          <button class="toolbar-action" type="button" disabled :title="t('toolbar.disabledFeature')">
-            {{ t('toolbar.export') }}
-          </button>
+          <template v-if="!usesCompactToolbar">
+            <RouterLink class="toolbar-action" to="/reader">{{ t('toolbar.pages') }}</RouterLink>
+            <RouterLink class="toolbar-action" to="/reader">{{ t('toolbar.ask') }}</RouterLink>
+            <button class="toolbar-action" type="button" disabled :title="t('toolbar.disabledFeature')">
+              {{ t('toolbar.uploadPdf') }}
+            </button>
+            <button class="toolbar-action" type="button" disabled :title="t('toolbar.disabledFeature')">
+              {{ t('toolbar.export') }}
+            </button>
+          </template>
           <button class="language-toggle" type="button" :title="t('app.languageLabel')" @click="toggleLocale">
             {{ t('app.languageSwitch') }}
           </button>
@@ -63,4 +65,36 @@ import { t, toggleLocale } from './utils/locale.js'
 
 const route = useRoute()
 const isStandaloneWorkspace = computed(() => route.meta?.standalone === true)
+const isReviewPage = computed(() => route.name === 'review')
+const isVocabularyPage = computed(() => route.name === 'vocabulary')
+const usesCompactToolbar = computed(() => isReviewPage.value || isVocabularyPage.value)
 </script>
+
+<style scoped>
+.compact-toolbar {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+}
+
+.compact-toolbar .toolbar-actions {
+  grid-column: 3;
+  justify-self: end;
+  padding-bottom: 0;
+  overflow: visible;
+}
+
+@media (max-width: 480px) {
+  .compact-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .compact-toolbar .nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .compact-toolbar .toolbar-actions {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+</style>
