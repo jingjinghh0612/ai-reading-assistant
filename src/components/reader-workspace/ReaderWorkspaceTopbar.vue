@@ -1,14 +1,14 @@
 <template>
-  <header class="prototype-topbar" aria-label="AI Reading workspace">
-    <div class="prototype-brand">
-      <span class="prototype-brand-mark" aria-hidden="true">AI</span>
-      <span class="prototype-brand-copy">
+  <header class="workspace-topbar" aria-label="AI Reading workspace">
+    <RouterLink class="workspace-brand" :to="{ name: 'home' }" aria-label="AI Reading，返回首页" title="返回首页">
+      <span class="workspace-brand-mark" aria-hidden="true">AI</span>
+      <span class="workspace-brand-copy">
         <strong>Reading</strong>
         <small>智能精读工作台</small>
       </span>
-    </div>
+    </RouterLink>
 
-    <button class="prototype-book-select" type="button" :title="book.title">
+    <button class="workspace-book-select" type="button" :title="book.title">
       <span class="book-select-icon" aria-hidden="true">Book</span>
       <span class="book-select-copy">
         <strong>{{ book.title }}</strong>
@@ -18,7 +18,7 @@
       <span class="book-select-caret" aria-hidden="true">⌄</span>
     </button>
 
-    <nav class="prototype-toolstrip" aria-label="阅读工具栏">
+    <nav class="workspace-toolstrip" aria-label="阅读工具栏">
       <div class="toolstrip-shell">
         <div class="toolstrip-group reading-group" aria-label="阅读标记">
           <button
@@ -125,7 +125,7 @@
 
         <p
           v-if="pasteMessage"
-          class="prototype-paste-message"
+          class="workspace-paste-message"
           :class="pasteMessageType"
         >
           {{ pasteMessage }}
@@ -136,6 +136,8 @@
 </template>
 
 <script setup>
+import { RouterLink } from 'vue-router'
+
 defineProps({
   book: {
     type: Object,

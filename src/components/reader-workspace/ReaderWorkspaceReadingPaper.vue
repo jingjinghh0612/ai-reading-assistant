@@ -1,6 +1,6 @@
 <template>
-  <section class="reader-paper-prototype">
-    <header class="paper-prototype-header">
+  <section class="workspace-reading-paper">
+    <header class="paper-workspace-header">
       <div>
         <p>Chapter {{ chapter.number }} · {{ chapter.title }}</p>
         <h1>{{ chapter.title }}</h1>
@@ -100,7 +100,7 @@
 </template>
 
 <script setup>
-import { getPrototypeClickableSentenceTokens } from '../../data/readerPrototypeSelectors.js'
+import { getClickableSentenceTokens } from '../../data/readerWorkspaceSelectors.js'
 
 const props = defineProps({
   chapter: {
@@ -208,7 +208,4 @@ function toggleSentenceHighlight(sentenceId) {
   emit('toggle-sentence-highlight', sentenceId)
 }
 
-function getClickableSentenceTokens(sentence) {
-  return getPrototypeClickableSentenceTokens(sentence)
-}
 </script>

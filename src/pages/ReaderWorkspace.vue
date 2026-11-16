@@ -1,11 +1,11 @@
 <template>
-  <div class="reader-prototype">
+  <div class="reader-workspace">
     <ReaderWorkspaceTopbar
       :book="currentBook"
       :chapter="currentChapter"
       :show-translation="showTranslation"
       :show-highlight="showHighlight"
-      :highlight-colors="prototypeHighlightColors"
+      :highlight-colors="highlightColors"
       :is-highlight-mode="isHighlightMode"
       :active-highlight-color-id="activeHighlightColorId"
       :is-highlight-clear-mode="isHighlightClearMode"
@@ -19,7 +19,7 @@
       @paste-article="openPasteEditor"
     />
 
-    <div class="prototype-workspace">
+    <div class="workspace-layout">
       <ReaderWorkspaceSidebar
         :books="books"
         :chapters="chapters"
@@ -32,7 +32,7 @@
         @delete-book="deleteImportedBook"
       />
 
-      <main class="prototype-reader" aria-label="英语阅读区">
+      <main class="workspace-reading-area" aria-label="英语阅读区">
         <ReaderWorkspaceBookImportPanel
           v-if="isBookImportOpen"
           :title="bookImportTitle"
@@ -67,15 +67,15 @@
           :selected-sentence-id="selectedSentenceId"
           :selected-paragraph-id="selectedParagraphId"
           @select-word="selectWord"
-          @select-sentence="selectPrototypeSentence"
-          @retry-translation="retryPrototypeTranslation"
-          @retry-sentence-translation="retryPrototypeSentenceTranslation"
-          @translate-paragraph="translatePrototypeParagraph"
-          @toggle-sentence-highlight="toggleSentenceHighlight"
+          @select-sentence="selectSentence"
+          @retry-translation="retryParagraphTranslation"
+          @retry-sentence-translation="retrySentenceTranslation"
+          @translate-paragraph="translateParagraph"
+          @toggle-sentence-highlight="handleSentenceHighlightToggle"
         />
         <section
           v-else
-          class="prototype-empty-book"
+          class="workspace-empty-book"
           aria-label="空书籍"
         >
           <p>暂无章节</p>
@@ -84,20 +84,20 @@
         </section>
       </main>
 
-      <ReaderWorkspaceAssistant
+      <ReaderWorkspaceVocabularyPanel
         :word="selectedWordEntry"
         :vocabulary="chapterVocabulary"
-        :wordbook="mockWordbook"
+        :session-vocabulary="sessionVocabulary"
         :is-added="isSelectedWordAdded"
         :is-word-loading="isWordLoading"
         :loading-word="loadingWord"
         :word-error-message="wordErrorMessage"
-        :message="wordbookMessage"
+        :message="vocabularyMessage"
         @select-word="selectWord"
-        @add-word="addToMockWordbook"
-        @remove-word="removeFromMockWordbook"
-        @retry-word="retrySelectedPrototypeWord"
-        @show-wordbook="clearSelectedWord"
+        @add-word="addSelectedWordToVocabulary"
+        @remove-word="removeWordFromVocabulary"
+        @retry-word="retrySelectedWordLookup"
+        @show-session-vocabulary="clearSelectedWord"
       />
     </div>
   </div>
@@ -105,49 +105,49 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { requestPrototypeWordExplanation } from '../api/prototypeWord.js'
-import ReaderWorkspaceAssistant from '../components/reader-workspace/ReaderWorkspaceAssistant.vue'
+import { requestWordLookup } from '../api/wordLookup.js'
+import ReaderWorkspaceVocabularyPanel from '../components/reader-workspace/ReaderWorkspaceVocabularyPanel.vue'
 import ReaderWorkspaceBookImportPanel from '../components/reader-workspace/ReaderWorkspaceBookImportPanel.vue'
 import ReaderWorkspacePasteEditor from '../components/reader-workspace/ReaderWorkspacePasteEditor.vue'
 import ReaderWorkspaceReadingPaper from '../components/reader-workspace/ReaderWorkspaceReadingPaper.vue'
 import ReaderWorkspaceSidebar from '../components/reader-workspace/ReaderWorkspaceSidebar.vue'
 import ReaderWorkspaceTopbar from '../components/reader-workspace/ReaderWorkspaceTopbar.vue'
 import { useReaderWorkspaceTranslations } from '../composables/useReaderWorkspaceTranslations.js'
-import { prototypeBooks, prototypeChapterContent, prototypeDictionary } from '../data/readerPrototypeData.js'
+import { builtInBooks, builtInChapterContent, builtInDictionary } from '../data/builtInReaderData.js'
 import {
-  createPastedPrototypeChapterContent,
-  findPrototypeBook,
-  findPrototypeBookChapterContent,
-  findPrototypeChapter,
-  getDefaultPrototypeHighlights,
-  getPrototypeChapterHighlights,
-  getPrototypeChapterVocabulary,
-  getPrototypeMockWordbook,
-  getPrototypeWordContext,
-  getPrototypeChapters,
-  getPrototypeParagraphs,
-  getPrototypeReadingProgress,
-  mapAiWordDetailToWordPanel,
+  createPastedChapterContent,
+  findBook,
+  findBookChapterContent,
+  findChapter,
+  getDefaultHighlights,
+  getChapterHighlights,
+  getChapterVocabulary,
+  getSessionVocabulary,
+  getWordContext,
+  getChapters,
+  getChapterParagraphs,
+  getReadingProgress,
+  mapWordLookupDetailToWordPanel,
   mapDictionaryEntryToWordPanel,
-  removePrototypeSentenceHighlight,
-  togglePrototypeSentenceHighlight,
-} from '../data/readerPrototypeSelectors.js'
+  removeSentenceHighlight,
+  toggleSentenceHighlight,
+} from '../data/readerWorkspaceSelectors.js'
 import { readClipboardText } from '../utils/clipboard.js'
 import { isWordSaved, removeVocabularyWord, saveVocabularyWord } from '../utils/vocabulary.js'
 import { normalizeWord } from '../utils/word.js'
 import {
-  appendImportedPrototypeBook,
-  createImportedPrototypeBookFromText,
-  getImportedPrototypeChapterContentById,
-  loadImportedPrototypeBooks,
-  removeImportedPrototypeBook,
-} from '../utils/prototypeBookImport.js'
-import { getPrototypeBookTitleFromFileName, parsePrototypeBookFile } from '../utils/prototypeFileParser.js'
-import '../reader-prototype.css'
+  appendImportedBook,
+  createImportedBookFromText,
+  getImportedChapterContentById,
+  loadImportedBooks,
+  removeImportedBook,
+} from '../utils/bookImport.js'
+import { getBookTitleFromFileName, parseBookFile } from '../utils/bookFileParser.js'
+import '../reader-workspace.css'
 
 const fallbackChapterId = 'chapter-4'
 const defaultHighlightColorId = 'yellow'
-const prototypeHighlightColors = [
+const highlightColors = [
   { id: 'yellow', label: '黄色' },
   { id: 'green', label: '绿色' },
   { id: 'blue', label: '蓝色' },
@@ -155,11 +155,11 @@ const prototypeHighlightColors = [
   { id: 'purple', label: '紫色' },
 ]
 
-function createInitialPrototypeHighlights() {
+function createInitialHighlights() {
   return Object.fromEntries(
-    Object.entries(prototypeChapterContent).map(([chapterId, chapterContent]) => [
+    Object.entries(builtInChapterContent).map(([chapterId, chapterContent]) => [
       chapterId,
-      getDefaultPrototypeHighlights(chapterContent, defaultHighlightColorId),
+      getDefaultHighlights(chapterContent, defaultHighlightColorId),
     ]),
   )
 }
@@ -171,13 +171,13 @@ const showHighlight = ref(true)
 const isHighlightMode = ref(false)
 const activeHighlightColorId = ref(defaultHighlightColorId)
 const isHighlightClearMode = ref(false)
-const sentenceHighlightsByChapter = ref(createInitialPrototypeHighlights())
+const sentenceHighlightsByChapter = ref(createInitialHighlights())
 const selectedWordKey = ref(null)
 const selectedWordContext = ref(null)
-const selectedAiWordEntry = ref(null)
-const addedWordKeys = ref([])
-const wordbookMessage = ref('')
-const wordbookMessageType = ref('success')
+const selectedWordLookupDetail = ref(null)
+const sessionVocabularyWordKeys = ref([])
+const vocabularyMessage = ref('')
+const vocabularyMessageType = ref('success')
 const vocabularyVersion = ref(0)
 const isWordLoading = ref(false)
 const loadingWord = ref('')
@@ -200,18 +200,18 @@ const wordCache = Object.create(null)
 const wordRequests = Object.create(null)
 let currentWordRequestId = 0
 
-const books = computed(() => [...importedBooks.value, ...prototypeBooks])
+const books = computed(() => [...importedBooks.value, ...builtInBooks])
 
-const importedChapterContentById = computed(() => getImportedPrototypeChapterContentById(importedBooks.value))
+const importedChapterContentById = computed(() => getImportedChapterContentById(importedBooks.value))
 
 const chapterContentById = computed(() => ({
-  ...prototypeChapterContent,
+  ...builtInChapterContent,
   ...importedChapterContentById.value,
 }))
 
-const currentBook = computed(() => findPrototypeBook(books.value, activeBookId.value))
+const currentBook = computed(() => findBook(books.value, activeBookId.value))
 
-const chapters = computed(() => getPrototypeChapters(currentBook.value))
+const chapters = computed(() => getChapters(currentBook.value))
 
 const pastedArticleChapter = computed(() => {
   if (!pastedChapterContent.value) {
@@ -236,12 +236,13 @@ const sidebarActiveChapterId = computed(() => {
   return isPastedArticleActive.value ? null : activeChapterId.value
 })
 
+// 粘贴文章优先显示，切回书架后再按当前书籍和章节查找正文。
 const currentChapterContent = computed(() => {
   if (isPastedArticleActive.value && pastedChapterContent.value) {
     return pastedChapterContent.value
   }
 
-  return findPrototypeBookChapterContent(
+  return findBookChapterContent(
     chapterContentById.value,
     currentBook.value,
     activeChapterId.value,
@@ -254,20 +255,20 @@ const currentChapter = computed(() => {
     return pastedArticleChapter.value
   }
 
-  return findPrototypeChapter(chapters.value, activeChapterId.value, currentChapterContent.value)
+  return findChapter(chapters.value, activeChapterId.value, currentChapterContent.value)
 })
 
-const paragraphs = computed(() => getPrototypeParagraphs(currentChapterContent.value))
+const paragraphs = computed(() => getChapterParagraphs(currentChapterContent.value))
 
 const {
-  clearPrototypeSentenceSelection,
-  clearPrototypeTranslationState,
+  clearSentenceSelection,
+  clearTranslationState,
   displayParagraphs,
-  retryPrototypeSentenceTranslation,
-  retryPrototypeTranslation,
-  selectPrototypeSentence,
+  retrySentenceTranslation,
+  retryParagraphTranslation,
+  selectSentence,
   selectedSentenceId,
-  translatePrototypeParagraph,
+  translateParagraph,
 } = useReaderWorkspaceTranslations({
   currentChapter,
   currentChapterContent,
@@ -278,17 +279,17 @@ const {
 })
 
 const currentChapterHighlights = computed(() => {
-  return getPrototypeChapterHighlights(sentenceHighlightsByChapter.value, currentChapter.value?.id)
+  return getChapterHighlights(sentenceHighlightsByChapter.value, currentChapter.value?.id)
 })
 
-const readingProgress = computed(() => getPrototypeReadingProgress(currentBook.value, currentChapter.value))
+const readingProgress = computed(() => getReadingProgress(currentBook.value, currentChapter.value))
 
 const chapterVocabulary = computed(() => {
-  return getPrototypeChapterVocabulary(currentChapterContent.value, prototypeDictionary, addedWordKeys.value)
+  return getChapterVocabulary(currentChapterContent.value, builtInDictionary, sessionVocabularyWordKeys.value)
 })
 
-const mockWordbook = computed(() => {
-  return getPrototypeMockWordbook(currentChapterContent.value, prototypeDictionary, addedWordKeys.value)
+const sessionVocabulary = computed(() => {
+  return getSessionVocabulary(currentChapterContent.value, builtInDictionary, sessionVocabularyWordKeys.value)
 })
 
 const selectedParagraphId = computed(() => selectedWordContext.value?.paragraphId || null)
@@ -298,14 +299,14 @@ const selectedWordEntry = computed(() => {
     return null
   }
 
-  const localEntry = prototypeDictionary[selectedWordKey.value]
+  const localEntry = builtInDictionary[selectedWordKey.value]
 
   if (localEntry) {
-    return mapDictionaryEntryToWordPanel(prototypeDictionary[selectedWordKey.value], selectedWordContext.value)
+    return mapDictionaryEntryToWordPanel(builtInDictionary[selectedWordKey.value], selectedWordContext.value)
   }
 
-  if (selectedAiWordEntry.value) {
-    return mapAiWordDetailToWordPanel(selectedAiWordEntry.value, selectedWordContext.value)
+  if (selectedWordLookupDetail.value) {
+    return mapWordLookupDetailToWordPanel(selectedWordLookupDetail.value, selectedWordContext.value)
   }
 
   return mapDictionaryEntryToWordPanel(null, selectedWordContext.value)
@@ -318,7 +319,7 @@ const isSelectedWordAdded = computed(() => {
     return false
   }
 
-  return addedWordKeys.value.includes(selectedWordKey.value) || isWordSaved(selectedWordEntry.value.word)
+  return sessionVocabularyWordKeys.value.includes(selectedWordKey.value) || isWordSaved(selectedWordEntry.value.word)
 })
 
 function hasCachedValue(cache, key) {
@@ -329,7 +330,7 @@ function getErrorMessage(error, fallbackMessage) {
   return error instanceof Error && error.message ? error.message : fallbackMessage
 }
 
-function getAiWordDetail(word) {
+function getWordLookupDetail(word) {
   const cacheKey = normalizeWord(word)
 
   if (!cacheKey) {
@@ -341,7 +342,7 @@ function getAiWordDetail(word) {
   }
 
   if (!wordRequests[cacheKey]) {
-    wordRequests[cacheKey] = requestPrototypeWordExplanation(word)
+    wordRequests[cacheKey] = requestWordLookup(word)
       .then((detail) => {
         wordCache[cacheKey] = detail
         return detail
@@ -355,7 +356,7 @@ function getAiWordDetail(word) {
 }
 
 function isKnownHighlightColor(colorId) {
-  return prototypeHighlightColors.some((color) => color.id === colorId)
+  return highlightColors.some((color) => color.id === colorId)
 }
 
 function toggleHighlightMode() {
@@ -383,6 +384,7 @@ function selectHighlightClear() {
 }
 
 function setCurrentChapterHighlights(nextChapterHighlights) {
+  // 每章单独记录句子高亮，切换章节时读取对应记录。
   const chapterId = currentChapter.value?.id
 
   if (!chapterId) {
@@ -395,20 +397,20 @@ function setCurrentChapterHighlights(nextChapterHighlights) {
   }
 }
 
-function toggleSentenceHighlight(sentenceId) {
+function handleSentenceHighlightToggle(sentenceId) {
   if (!isHighlightMode.value || !sentenceId) {
     return
   }
 
   const nextChapterHighlights = isHighlightClearMode.value
-    ? removePrototypeSentenceHighlight(currentChapterHighlights.value, sentenceId)
-    : togglePrototypeSentenceHighlight(currentChapterHighlights.value, sentenceId, activeHighlightColorId.value)
+    ? removeSentenceHighlight(currentChapterHighlights.value, sentenceId)
+    : toggleSentenceHighlight(currentChapterHighlights.value, sentenceId, activeHighlightColorId.value)
 
   setCurrentChapterHighlights(nextChapterHighlights)
 }
 
 function selectBook(bookId) {
-  const nextBook = findPrototypeBook(books.value, bookId)
+  const nextBook = findBook(books.value, bookId)
 
   if (!nextBook) {
     return
@@ -448,7 +450,7 @@ async function deleteImportedBook(bookId) {
     return
   }
 
-  const result = await removeImportedPrototypeBook(bookId)
+  const result = await removeImportedBook(bookId)
 
   if (!result.deleted) {
     return
@@ -482,7 +484,7 @@ function updateAfterImportedBookDeleted(deletedBook, nextImportedBooks) {
 }
 
 function getFirstReadableBook(nextImportedBooks) {
-  const nextBooks = [...nextImportedBooks, ...prototypeBooks]
+  const nextBooks = [...nextImportedBooks, ...builtInBooks]
 
   return nextBooks.find((item) => item?.chapters?.length) || nextBooks[0] || null
 }
@@ -504,7 +506,7 @@ function removeHighlightsForBook(book) {
 }
 
 async function loadImportedBooksIntoShelf() {
-  importedBooks.value = await loadImportedPrototypeBooks()
+  importedBooks.value = await loadImportedBooks()
 }
 
 function activateImportedBook(importedBook, nextImportedBooks) {
@@ -541,16 +543,16 @@ async function selectWord(selection) {
   const wordSelection = typeof selection === 'string' ? { wordKey: selection } : selection
 
   selectedWordKey.value = wordSelection?.wordKey || null
-  selectedWordContext.value = getPrototypeWordContext(currentChapterContent.value, wordSelection)
-  selectedAiWordEntry.value = null
+  selectedWordContext.value = getWordContext(currentChapterContent.value, wordSelection)
+  selectedWordLookupDetail.value = null
   wordErrorMessage.value = ''
-  wordbookMessage.value = ''
+  vocabularyMessage.value = ''
 
   if (!selectedWordKey.value) {
     return
   }
 
-  if (prototypeDictionary[selectedWordKey.value]) {
+  if (builtInDictionary[selectedWordKey.value]) {
     currentWordRequestId += 1
     isWordLoading.value = false
     loadingWord.value = ''
@@ -564,10 +566,11 @@ async function selectWord(selection) {
     return
   }
 
+  // 连续点击单词时，只有最新一次查询能更新释义面板。
   const requestId = ++currentWordRequestId
 
   if (hasCachedValue(wordCache, normalizedRequestWord)) {
-    selectedAiWordEntry.value = wordCache[normalizedRequestWord]
+    selectedWordLookupDetail.value = wordCache[normalizedRequestWord]
     return
   }
 
@@ -575,19 +578,19 @@ async function selectWord(selection) {
   loadingWord.value = requestWord
 
   try {
-    const detail = await getAiWordDetail(requestWord)
+    const detail = await getWordLookupDetail(requestWord)
 
     if (requestId !== currentWordRequestId) {
       return
     }
 
-    selectedAiWordEntry.value = detail
+    selectedWordLookupDetail.value = detail
   } catch (error) {
     if (requestId !== currentWordRequestId) {
       return
     }
 
-    wordErrorMessage.value = getErrorMessage(error, 'AI 词典加载失败。')
+    wordErrorMessage.value = getErrorMessage(error, '查词失败。')
   } finally {
     if (requestId === currentWordRequestId) {
       isWordLoading.value = false
@@ -596,7 +599,7 @@ async function selectWord(selection) {
   }
 }
 
-function addToMockWordbook() {
+function addSelectedWordToVocabulary() {
   if (!selectedWordKey.value || !selectedWordEntry.value) {
     return
   }
@@ -614,45 +617,46 @@ function addToMockWordbook() {
   vocabularyVersion.value += 1
 
   if (result.error) {
-    wordbookMessage.value = result.error
-    wordbookMessageType.value = 'error'
+    vocabularyMessage.value = result.error
+    vocabularyMessageType.value = 'error'
     return
   }
 
-  if (!addedWordKeys.value.includes(selectedWordKey.value)) {
-    addedWordKeys.value = [...addedWordKeys.value, selectedWordKey.value]
+  // 持久化成功后再更新右侧面板的本轮加入记录。
+  if (!sessionVocabularyWordKeys.value.includes(selectedWordKey.value)) {
+    sessionVocabularyWordKeys.value = [...sessionVocabularyWordKeys.value, selectedWordKey.value]
   }
 
-  wordbookMessage.value = result.added ? '已加入生词本' : '已在生词本中'
-  wordbookMessageType.value = 'success'
+  vocabularyMessage.value = result.added ? '已加入生词本' : '已在生词本中'
+  vocabularyMessageType.value = 'success'
 }
 
-function removeFromMockWordbook(wordKey = selectedWordKey.value) {
+function removeWordFromVocabulary(wordKey = selectedWordKey.value) {
   if (!wordKey) {
     return
   }
 
-  const wordbookItem = mockWordbook.value.find((item) => item.wordKey === wordKey)
+  const sessionVocabularyItem = sessionVocabulary.value.find((item) => item.wordKey === wordKey)
   const removeTarget = wordKey === selectedWordKey.value
     ? selectedWordEntry.value?.word || wordKey
-    : wordbookItem?.word || wordKey
+    : sessionVocabularyItem?.word || wordKey
   const result = removeVocabularyWord(removeTarget)
 
   vocabularyVersion.value += 1
-  addedWordKeys.value = addedWordKeys.value.filter((item) => item !== wordKey)
+  sessionVocabularyWordKeys.value = sessionVocabularyWordKeys.value.filter((item) => item !== wordKey)
 
   if (result.error) {
-    wordbookMessage.value = result.error
-    wordbookMessageType.value = 'error'
+    vocabularyMessage.value = result.error
+    vocabularyMessageType.value = 'error'
     return
   }
 
-  wordbookMessage.value = '已从生词本移出'
-  wordbookMessageType.value = 'success'
+  vocabularyMessage.value = '已从生词本移出'
+  vocabularyMessageType.value = 'success'
 }
 
-function retrySelectedPrototypeWord() {
-  if (!selectedWordKey.value || prototypeDictionary[selectedWordKey.value]) {
+function retrySelectedWordLookup() {
+  if (!selectedWordKey.value || builtInDictionary[selectedWordKey.value]) {
     return
   }
 
@@ -674,12 +678,12 @@ function clearSelectedWord() {
   currentWordRequestId += 1
   selectedWordKey.value = null
   selectedWordContext.value = null
-  selectedAiWordEntry.value = null
+  selectedWordLookupDetail.value = null
   isWordLoading.value = false
   loadingWord.value = ''
   wordErrorMessage.value = ''
-  wordbookMessage.value = ''
-  wordbookMessageType.value = 'success'
+  vocabularyMessage.value = ''
+  vocabularyMessageType.value = 'success'
 }
 
 function openPasteEditor() {
@@ -718,7 +722,7 @@ function closeBookImport() {
 
 function selectImportFile(file) {
   bookImportFile.value = file
-  bookImportTitle.value = file ? getPrototypeBookTitleFromFileName(file.name) : ''
+  bookImportTitle.value = file ? getBookTitleFromFileName(file.name) : ''
   bookImportMessage.value = ''
   bookImportMessageType.value = 'success'
 }
@@ -735,7 +739,7 @@ async function importSelectedBookFile() {
   bookImportMessageType.value = 'success'
 
   try {
-    const parsedFile = await parsePrototypeBookFile(bookImportFile.value)
+    const parsedFile = await parseBookFile(bookImportFile.value)
 
     if (!parsedFile.ok) {
       bookImportMessage.value = getBookImportMessage(parsedFile.reason)
@@ -743,7 +747,7 @@ async function importSelectedBookFile() {
       return
     }
 
-    const importedBook = createImportedPrototypeBookFromText({
+    const importedBook = createImportedBookFromText({
       title: bookImportTitle.value || parsedFile.title,
       sourceType: parsedFile.sourceType,
       fileName: parsedFile.fileName,
@@ -757,9 +761,10 @@ async function importSelectedBookFile() {
       return
     }
 
-    const result = await appendImportedPrototypeBook(importedBook)
+    const result = await appendImportedBook(importedBook)
 
     if (!result.ok) {
+      // 写入失败时仍可在本轮阅读已解析的书籍。
       activateTemporaryImportedBook(importedBook, result.books)
       return
     }
@@ -788,7 +793,7 @@ async function readClipboardIntoDraft() {
 }
 
 function submitPastedArticle() {
-  const pastedChapter = createPastedPrototypeChapterContent(pasteDraft.value)
+  const pastedChapter = createPastedChapterContent(pasteDraft.value)
 
   if (!pastedChapter) {
     pasteArticleMessage.value = getPasteArticleMessage('empty')
@@ -805,8 +810,8 @@ function submitPastedArticle() {
     ...sentenceHighlightsByChapter.value,
     [pastedChapter.id]: {},
   }
-  clearPrototypeSentenceSelection()
-  clearPrototypeTranslationState()
+  clearSentenceSelection()
+  clearTranslationState()
   clearSelectedWord()
   pasteArticleMessage.value = '已载入粘贴文章'
   pasteArticleMessageType.value = 'success'
@@ -843,6 +848,6 @@ function getBookImportMessage(reason) {
 loadImportedBooksIntoShelf()
 
 watch(currentChapterContent, () => {
-  clearPrototypeSentenceSelection()
+  clearSentenceSelection()
 })
 </script>

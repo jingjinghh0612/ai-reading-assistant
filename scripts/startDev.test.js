@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, it } from 'node:test'
@@ -13,20 +14,25 @@ describe('development startup script', () => {
     assert.equal(packageJson.scripts['dev:all'], 'node scripts/startDev.js')
   })
 
-  it('declares the backend server and Vite frontend commands', async () => {
+  it('starts both entries with Node so Windows can launch them without a shell', async () => {
     const { createProcessSpecs } = await import('./startDev.js')
+    const [server, vite] = createProcessSpecs()
 
-    assert.deepEqual(createProcessSpecs('npm.cmd'), [
-      {
-        name: 'server',
-        command: 'npm.cmd',
-        args: ['run', 'server'],
-      },
-      {
-        name: 'vite',
-        command: 'npm.cmd',
-        args: ['run', 'dev'],
-      },
-    ])
+    assert.deepEqual(server, {
+      name: 'server',
+      command: process.execPath,
+      args: [path.join(repoRoot, 'server', 'index.js')],
+    })
+    assert.equal(vite.command, process.execPath)
+    assert.deepEqual(vite.args.slice(1), ['--configLoader', 'native'])
+
+    const result = spawnSync(vite.command, [...vite.args, '--version'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      timeout: 5000,
+    })
+    assert.ifError(result.error)
+    assert.equal(result.status, 0, result.stderr)
+    assert.match(result.stdout, /vite\//)
   })
 })

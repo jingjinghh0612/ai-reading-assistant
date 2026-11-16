@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { describe, it } from 'node:test'
 
-const readerSource = readFileSync(new URL('./Reader.vue', import.meta.url), 'utf8')
+const readerSource = readFileSync(new URL('./ReaderLegacy.vue', import.meta.url), 'utf8')
 const sentenceViewerSource = readFileSync(new URL('../components/SentenceViewer.vue', import.meta.url), 'utf8')
 const styleSource = readFileSync(new URL('../style.css', import.meta.url), 'utf8')
 

@@ -1,5 +1,5 @@
 <template>
-  <section class="prototype-book-import-panel" aria-label="导入书籍">
+  <section class="workspace-book-import-panel" aria-label="导入书籍">
     <header class="book-import-header">
       <p>Import Book</p>
       <h1>导入书籍</h1>

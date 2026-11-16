@@ -1,10 +1,11 @@
 import { splitIntoSentences } from './sentence.js'
 import { getStorageItem } from './storage.js'
-import { splitPrototypeReadableParagraphs } from './prototypeParagraphs.js'
+import { splitReadableParagraphs } from './paragraphs.js'
 import { normalizeWord, splitSentenceIntoTokens } from './word.js'
-import { decodeXmlText } from './prototypeFileParser.js'
+import { decodeXmlText } from './bookFileParser.js'
 
-export const IMPORTED_PROTOTYPE_BOOKS_STORAGE_KEY = 'ai-reading:reader-prototype:imported-books'
+// 浏览器按这些固定字符串查找书架数据，保留原值以读取已有书籍。
+export const LEGACY_IMPORTED_BOOKS_STORAGE_KEY = 'ai-reading:reader-prototype:imported-books'
 const IMPORTED_BOOKS_DB_NAME = 'ai-reading-reader-prototype'
 const IMPORTED_BOOKS_DB_VERSION = 1
 const IMPORTED_BOOKS_STORE_NAME = 'importedBooks'
@@ -13,7 +14,7 @@ const IMPORTED_BOOKS_ORDER_KEY = 'bookOrder'
 let importedBooksDatabasePromise = null
 let importedBooksIndexedDbReference = null
 
-export function createImportedPrototypeBookFromText({
+export function createImportedBookFromText({
   id,
   title,
   sourceType = 'file',
@@ -42,7 +43,7 @@ export function createImportedPrototypeBookFromText({
   const bookChapters = chapterBlocks.map((chapterBlock, chapterIndex) => {
     const chapterNumber = String(chapterIndex + 1).padStart(2, '0')
     const chapterId = `${bookId}-chapter-${chapterIndex + 1}`
-    const chapterContent = createImportedPrototypeChapterContent({
+    const chapterContent = createImportedChapterContent({
       bookId,
       chapterId,
       number: chapterNumber,
@@ -138,21 +139,22 @@ export function splitImportedTextIntoChapterBlocks(text, fallbackTitle = 'Import
   }))
 }
 
-export async function loadImportedPrototypeBooks() {
-  const indexedDbBooks = await loadImportedPrototypeBooksFromIndexedDb()
+export async function loadImportedBooks() {
+  const indexedDbBooks = await loadImportedBooksFromIndexedDb()
 
   if (indexedDbBooks) {
-    const legacyBooks = loadLegacyImportedPrototypeBooks()
+    const legacyBooks = loadLegacyImportedBooks()
 
     if (legacyBooks.length) {
+      // 同一本书以 IndexedDB 中的版本为准，确认写入成功后才清理旧数据。
       const indexedDbBookIds = new Set(indexedDbBooks.map((book) => book.id))
       const migratedBooks = [
         ...legacyBooks.filter((book) => !indexedDbBookIds.has(book.id)),
         ...indexedDbBooks,
       ]
 
-      if (await saveImportedPrototypeBooks(migratedBooks)) {
-        clearLegacyImportedPrototypeBooks()
+      if (await saveImportedBooks(migratedBooks)) {
+        clearLegacyImportedBooks()
         return migratedBooks
       }
     }
@@ -160,11 +162,11 @@ export async function loadImportedPrototypeBooks() {
     return indexedDbBooks
   }
 
-  return loadLegacyImportedPrototypeBooks()
+  return loadLegacyImportedBooks()
 }
 
-function loadLegacyImportedPrototypeBooks() {
-  const rawValue = getStorageItem(IMPORTED_PROTOTYPE_BOOKS_STORAGE_KEY, '[]')
+function loadLegacyImportedBooks() {
+  const rawValue = getStorageItem(LEGACY_IMPORTED_BOOKS_STORAGE_KEY, '[]')
 
   try {
     const parsedBooks = JSON.parse(rawValue)
@@ -179,13 +181,13 @@ function loadLegacyImportedPrototypeBooks() {
   }
 }
 
-function clearLegacyImportedPrototypeBooks() {
+function clearLegacyImportedBooks() {
   try {
-    localStorage.removeItem(IMPORTED_PROTOTYPE_BOOKS_STORAGE_KEY)
+    localStorage.removeItem(LEGACY_IMPORTED_BOOKS_STORAGE_KEY)
   } catch {}
 }
 
-export async function saveImportedPrototypeBooks(books) {
+export async function saveImportedBooks(books) {
   const normalizedBooks = Array.isArray(books) ? books.map(normalizeImportedBook).filter(Boolean) : []
   const database = await openImportedBooksDatabase()
 
@@ -211,8 +213,8 @@ export async function saveImportedPrototypeBooks(books) {
   }
 }
 
-export async function appendImportedPrototypeBook(book) {
-  const existingBooks = await loadImportedPrototypeBooks()
+export async function appendImportedBook(book) {
+  const existingBooks = await loadImportedBooks()
 
   if (!book) {
     return {
@@ -223,7 +225,7 @@ export async function appendImportedPrototypeBook(book) {
 
   const nextBooks = [book, ...existingBooks.filter((item) => item.id !== book.id)]
 
-  if (!(await saveImportedPrototypeBooks(nextBooks))) {
+  if (!(await saveImportedBooks(nextBooks))) {
     return {
       ok: false,
       books: existingBooks,
@@ -236,8 +238,8 @@ export async function appendImportedPrototypeBook(book) {
   }
 }
 
-export async function removeImportedPrototypeBook(bookId) {
-  const existingBooks = await loadImportedPrototypeBooks()
+export async function removeImportedBook(bookId) {
+  const existingBooks = await loadImportedBooks()
   const nextBooks = existingBooks.filter((book) => book.id !== bookId)
 
   if (nextBooks.length === existingBooks.length) {
@@ -247,7 +249,7 @@ export async function removeImportedPrototypeBook(bookId) {
     }
   }
 
-  if (!(await saveImportedPrototypeBooks(nextBooks))) {
+  if (!(await saveImportedBooks(nextBooks))) {
     return {
       deleted: false,
       books: existingBooks,
@@ -260,7 +262,7 @@ export async function removeImportedPrototypeBook(bookId) {
   }
 }
 
-async function loadImportedPrototypeBooksFromIndexedDb() {
+async function loadImportedBooksFromIndexedDb() {
   const database = await openImportedBooksDatabase()
 
   if (!database) {
@@ -371,7 +373,7 @@ function clearObjectStore(database, storeName) {
   return requestToPromise(getObjectStore(database, storeName, 'readwrite').clear())
 }
 
-export function getImportedPrototypeChapterContentById(books) {
+export function getImportedChapterContentById(books) {
   const contentById = {}
 
   for (const book of books || []) {
@@ -383,8 +385,8 @@ export function getImportedPrototypeChapterContentById(books) {
   return contentById
 }
 
-function createImportedPrototypeChapterContent({ bookId, chapterId, number, title, text }) {
-  const paragraphTexts = splitPrototypeReadableParagraphs(text)
+function createImportedChapterContent({ bookId, chapterId, number, title, text }) {
+  const paragraphTexts = splitReadableParagraphs(text)
 
   return {
     id: chapterId,

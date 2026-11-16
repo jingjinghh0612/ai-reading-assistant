@@ -1,10 +1,10 @@
 import { postJson } from './request.js'
 
-export async function requestPrototypeWordExplanation(word) {
+export async function requestWordLookup(word) {
   const data = await postJson(
-    '/api/prototype-word-explain',
+    '/api/word-lookup',
     { word },
-    'Failed to load the prototype word explanation.',
+    'Failed to look up the word.',
   )
 
   return {

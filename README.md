@@ -15,7 +15,7 @@
 
 ## 核心功能
 
-- `/home` 首页可导入英文文章并进入新版阅读工作台，根路径 `/` 默认直接打开阅读工作台。
+- 首页 `/` 提供阅读工作台和生词复习入口，并显示当前待复习的单词数。
 - 阅读页支持书架、章节、EPUB/PDF 导入、粘贴文章、句子级阅读、按需句子/段落翻译和阅读进度展示。
 - 点击单词获取 AI 释义、词性、定义和例句，并可加入本地生词本。
 - 右侧单词面板展示本地词典、外部词典或 AI 兜底释义，并支持加入生词本。
@@ -29,8 +29,8 @@
 
 | 路径 | 页面 | 说明 |
 | --- | --- | --- |
-| `/` | 默认入口 | 重定向到 `/reader` |
-| `/home` | 首页 | 输入英文文章，查看历史文章 |
+| `/` | 首页 | 开始阅读、查看待复习词数、进入生词复习 |
+| `/home` | 旧版文章入口 | 输入英文文章，查看历史文章 |
 | `/reader` | 新版阅读页 | 书架、章节、导入、单词释义、按需翻译和高亮 |
 | `/reader-prototype` | 新版阅读页兼容入口 | 保留旧入口链接，指向新版阅读页 |
 | `/reader-legacy` | 旧版阅读页 | 旧的句子级阅读、翻译、单词解释、摘要流程 |
@@ -46,7 +46,8 @@ ai-reading-app-github-ready
 │  ├─ index.js                 # Express 后端入口，提供 API 和静态文件服务
 │  ├─ setupProxy.js             # 可选代理配置，用于 Gemini 请求走本地代理
 │  └─ services
-│     ├─ aiService.js           # Gemini 调用、超时、重试、缓存和 mock fallback
+│     ├─ aiService.js           # AI 请求、超时、重试、缓存和模拟结果
+│     ├─ wordLookupService.js   # 本地词库、外部词典和 AI 查词
 │     └─ prompts.js             # 翻译、单词解释、摘要 prompt
 ├─ src
 │  ├─ api                       # 前端 API 请求封装
@@ -54,21 +55,21 @@ ai-reading-app-github-ready
 │  │  ├─ SentenceViewer.vue     # 旧版阅读页句子展示、翻译卡、单词卡
 │  │  └─ reader-workspace       # 新版阅读页顶部栏、侧边栏、正文和右侧面板
 │  ├─ data
-│  │  ├─ readerPrototypeData.js       # 新版阅读页本地书籍、章节、词典数据
-│  │  └─ readerPrototypeSelectors.js  # 新版阅读页选择器和高亮 helper
+│  │  ├─ builtInReaderData.js         # 内置书籍、章节和词条
+│  │  └─ readerWorkspaceSelectors.js # 章节、词汇和高亮数据处理
 │  ├─ pages
 │  │  ├─ Home.vue
-│  │  ├─ Reader.vue                  # 旧版阅读页，路由 /reader-legacy
+│  │  ├─ ReaderLegacy.vue            # 旧版阅读页，路由 /reader-legacy
 │  │  ├─ ReaderWorkspace.vue         # 新版阅读工作台正式入口，路由 /reader
-│  │  ├─ ReaderPrototype.vue         # 旧原型 URL 兼容入口，路由 /reader-prototype
 │  │  ├─ Review.vue
 │  │  └─ Vocabulary.vue
 │  ├─ router
 │  │  └─ index.js
-│  ├─ utils                     # 句子切分、导航、字号、生词、历史、单词卡工具
+│  ├─ utils                     # 书籍导入、文件解析、句子切分、生词和阅读历史
 │  ├─ App.vue
 │  ├─ main.js
-│  └─ style.css
+│  ├─ style.css
+│  └─ reader-workspace.css      # 阅读工作台样式
 ├─ .env.example
 ├─ package.json
 └─ vite.config.js
@@ -171,8 +172,11 @@ GEMINI_PROXY_URL=http://127.0.0.1:7890
 GET  /api/health
 POST /api/translate
 POST /api/word-explain
+POST /api/word-lookup
 POST /api/summarize
 ```
+
+工作台使用 `/api/word-lookup` 查词。`/api/prototype-word-explain` 是同一查词服务的兼容地址，旧版阅读页继续使用 `/api/word-explain`。
 
 前端只请求本项目后端接口，不直接暴露或读取 `DEEPSEEK_API_KEY`、`GEMINI_API_KEY`。
 
@@ -206,7 +210,7 @@ npm.cmd run build
 
 ## 答辩演示建议
 
-1. 打开 `/` 直接进入阅读工作台；也可在 `/home` 输入英文文章后进入 `/reader`。
+1. 打开 `/`，选择「开始阅读」进入 `/reader`，或选择「开始复习」进入 `/review`。
 2. 双击英文句子，展示按需句子翻译；点击“翻译本段”，展示段落翻译。
 3. 点击单词，展示本地词典、外部词典或 AI 兜底释义，并加入生词本。
 4. 展示 EPUB/PDF 导入、粘贴文章和手动高亮，说明新版阅读工作台已经作为正式入口。

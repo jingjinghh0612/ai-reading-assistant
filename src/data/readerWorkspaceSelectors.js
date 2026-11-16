@@ -1,5 +1,5 @@
 import { splitIntoSentences } from '../utils/sentence.js'
-import { splitPrototypeReadableParagraphs } from '../utils/prototypeParagraphs.js'
+import { splitReadableParagraphs } from '../utils/paragraphs.js'
 import { normalizeWord, splitSentenceIntoTokens } from '../utils/word.js'
 
 const PASTED_CHAPTER_ID = 'pasted-article'
@@ -11,30 +11,30 @@ const TRANSLATION_PLACEHOLDER_PATTERNS = [
   /no translation/i,
 ]
 
-function normalizePrototypeText(value) {
+function normalizeText(value) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-function isPrototypeTranslationPlaceholder(value) {
-  const text = normalizePrototypeText(value)
+function isTranslationPlaceholder(value) {
+  const text = normalizeText(value)
 
   return !text || TRANSLATION_PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(text))
 }
 
-export function findPrototypeBook(books, activeBookId) {
+export function findBook(books, activeBookId) {
   return books.find((book) => book.id === activeBookId) || books[0] || null
 }
 
-export function getPrototypeChapters(book) {
+export function getChapters(book) {
   return book?.chapters || []
 }
 
-export function findPrototypeChapterContent(chapterContentById, activeChapterId, fallbackChapterId) {
+export function findChapterContent(chapterContentById, activeChapterId, fallbackChapterId) {
   return chapterContentById[activeChapterId] || chapterContentById[fallbackChapterId] || null
 }
 
-export function findPrototypeBookChapterContent(chapterContentById, book, activeChapterId, fallbackChapterId) {
-  const chapters = getPrototypeChapters(book)
+export function findBookChapterContent(chapterContentById, book, activeChapterId, fallbackChapterId) {
+  const chapters = getChapters(book)
 
   if (!chapters.length) {
     return null
@@ -55,7 +55,7 @@ export function findPrototypeBookChapterContent(chapterContentById, book, active
   return firstReadableChapter ? chapterContentById[firstReadableChapter.id] : null
 }
 
-export function findPrototypeChapter(chapters, activeChapterId, chapterContent) {
+export function findChapter(chapters, activeChapterId, chapterContent) {
   return (
     chapters.find((chapter) => chapter.id === activeChapterId) ||
     chapters.find((chapter) => chapter.id === chapterContent?.id) ||
@@ -64,54 +64,54 @@ export function findPrototypeChapter(chapters, activeChapterId, chapterContent) 
   )
 }
 
-export function getPrototypeParagraphs(chapterContent) {
+export function getChapterParagraphs(chapterContent) {
   return chapterContent?.paragraphs || []
 }
 
-export function getPrototypeParagraphSourceText(paragraph) {
+export function getParagraphSourceText(paragraph) {
   const sentenceText = (paragraph?.sentences || [])
-    .map((sentence) => normalizePrototypeText(sentence.text))
+    .map((sentence) => normalizeText(sentence.text))
     .filter(Boolean)
     .join(' ')
 
-  return sentenceText || normalizePrototypeText(paragraph?.text)
+  return sentenceText || normalizeText(paragraph?.text)
 }
 
-export function getPrototypeLocalParagraphTranslation(paragraph) {
-  const paragraphTranslation = normalizePrototypeText(paragraph?.translation)
+export function getLocalParagraphTranslation(paragraph) {
+  const paragraphTranslation = normalizeText(paragraph?.translation)
 
-  if (paragraphTranslation && !isPrototypeTranslationPlaceholder(paragraphTranslation)) {
+  if (paragraphTranslation && !isTranslationPlaceholder(paragraphTranslation)) {
     return paragraphTranslation
   }
 
   return (paragraph?.sentences || [])
-    .map((sentence) => normalizePrototypeText(sentence.translation))
-    .filter((translation) => translation && !isPrototypeTranslationPlaceholder(translation))
+    .map((sentence) => normalizeText(sentence.translation))
+    .filter((translation) => translation && !isTranslationPlaceholder(translation))
     .join(' ')
 }
 
-export function getPrototypeSentenceSourceText(sentence) {
-  return normalizePrototypeText(sentence?.text)
+export function getSentenceSourceText(sentence) {
+  return normalizeText(sentence?.text)
 }
 
-export function getPrototypeLocalSentenceTranslation(sentence) {
-  const sentenceTranslation = normalizePrototypeText(sentence?.translation)
+export function getLocalSentenceTranslation(sentence) {
+  const sentenceTranslation = normalizeText(sentence?.translation)
 
-  return sentenceTranslation && !isPrototypeTranslationPlaceholder(sentenceTranslation) ? sentenceTranslation : ''
+  return sentenceTranslation && !isTranslationPlaceholder(sentenceTranslation) ? sentenceTranslation : ''
 }
 
-export function getPrototypeTranslationStateKey(chapterId, paragraphId, itemId) {
+export function createTranslationStateKey(chapterId, paragraphId, itemId) {
   return `${chapterId || 'chapter'}:${paragraphId || 'paragraph'}:${itemId || ''}`
 }
 
-export function getPrototypeReadingProgress(book, chapter) {
+export function getReadingProgress(book, chapter) {
   return {
     book: book?.progress || 0,
     chapter: chapter?.progress || 0,
   }
 }
 
-export function getPrototypeChapterVocabulary(chapterContent, dictionary, addedWordKeys = []) {
+export function getChapterVocabulary(chapterContent, dictionary, sessionVocabularyWordKeys = []) {
   const vocabularyByKey = new Map()
 
   for (const paragraph of chapterContent?.paragraphs || []) {
@@ -141,7 +141,7 @@ export function getPrototypeChapterVocabulary(chapterContent, dictionary, addedW
           partOfSpeech: entry?.partOfSpeech || '',
           meaning: meaning || '',
           count: 1,
-          isAdded: addedWordKeys.includes(token.wordKey),
+          isAdded: sessionVocabularyWordKeys.includes(token.wordKey),
           selection: {
             wordKey: token.wordKey,
             surface: token.surface || token.text || '',
@@ -155,13 +155,13 @@ export function getPrototypeChapterVocabulary(chapterContent, dictionary, addedW
   return Array.from(vocabularyByKey.values())
 }
 
-export function getPrototypeMockWordbook(chapterContent, dictionary, addedWordKeys = []) {
+export function getSessionVocabulary(chapterContent, dictionary, sessionVocabularyWordKeys = []) {
   const chapterVocabularyByKey = new Map(
-    getPrototypeChapterVocabulary(chapterContent, dictionary, addedWordKeys).map((item) => [item.wordKey, item]),
+    getChapterVocabulary(chapterContent, dictionary, sessionVocabularyWordKeys).map((item) => [item.wordKey, item]),
   )
   const seenWordKeys = new Set()
 
-  return addedWordKeys
+  return sessionVocabularyWordKeys
     .filter((wordKey) => {
       if (seenWordKeys.has(wordKey)) {
         return false
@@ -204,7 +204,7 @@ export function getPrototypeMockWordbook(chapterContent, dictionary, addedWordKe
     })
 }
 
-export function getPrototypeClickableSentenceTokens(sentence) {
+export function getClickableSentenceTokens(sentence) {
   return (sentence?.tokens || []).flatMap((token) => {
     const sentenceId = token.sentenceId || sentence?.id || ''
 
@@ -217,11 +217,11 @@ export function getPrototypeClickableSentenceTokens(sentence) {
       ]
     }
 
-    return splitPrototypeTextTokenForClicks(token, sentenceId)
+    return splitTextTokenForClicks(token, sentenceId)
   })
 }
 
-function splitPrototypeTextTokenForClicks(token, sentenceId) {
+function splitTextTokenForClicks(token, sentenceId) {
   const sourceText = typeof token?.text === 'string' ? token.text : ''
 
   if (!sourceText) {
@@ -253,7 +253,7 @@ function splitPrototypeTextTokenForClicks(token, sentenceId) {
   })
 }
 
-export function getPrototypeWordContext(chapterContent, selection) {
+export function getWordContext(chapterContent, selection) {
   if (!chapterContent || !selection?.wordKey) {
     return null
   }
@@ -332,31 +332,30 @@ export function mapDictionaryEntryToWordPanel(entry, context = null) {
   }
 }
 
-export function mapAiWordDetailToWordPanel(detail, context = null) {
+export function mapWordLookupDetailToWordPanel(detail, context = null) {
   if (!detail && !context) {
     return null
   }
 
-  const word = normalizePrototypeText(context?.surface) || normalizePrototypeText(detail?.word) || context?.wordKey || ''
+  const word = normalizeText(context?.surface) || normalizeText(detail?.word) || context?.wordKey || ''
   const lemma = normalizeWord(context?.wordKey || detail?.word || word)
 
   return {
     word,
     lemma,
     phonetic: '',
-    partOfSpeech: normalizePrototypeText(detail?.partOfSpeech),
-    meaning: normalizePrototypeText(detail?.meaning),
-    explanation: normalizePrototypeText(detail?.definition),
-    example: normalizePrototypeText(detail?.example),
+    partOfSpeech: normalizeText(detail?.partOfSpeech),
+    meaning: normalizeText(detail?.meaning),
+    explanation: normalizeText(detail?.definition),
+    example: normalizeText(detail?.example),
     exampleTranslation: '',
     forms: [],
-    sourceSentence: normalizePrototypeText(context?.sourceSentence),
-    sourceTranslation: normalizePrototypeText(context?.sourceTranslation),
-    isAiGenerated: true,
+    sourceSentence: normalizeText(context?.sourceSentence),
+    sourceTranslation: normalizeText(context?.sourceTranslation),
   }
 }
 
-export function getDefaultPrototypeHighlights(chapterContent, defaultColorId = 'yellow') {
+export function getDefaultHighlights(chapterContent, defaultColorId = 'yellow') {
   const highlights = {}
 
   for (const paragraph of chapterContent?.paragraphs || []) {
@@ -370,13 +369,13 @@ export function getDefaultPrototypeHighlights(chapterContent, defaultColorId = '
   return highlights
 }
 
-export function getPrototypeChapterHighlights(highlightsByChapter, chapterId) {
+export function getChapterHighlights(highlightsByChapter, chapterId) {
   return {
     ...(highlightsByChapter?.[chapterId] || {}),
   }
 }
 
-export function togglePrototypeSentenceHighlight(chapterHighlights, sentenceId, activeColorId) {
+export function toggleSentenceHighlight(chapterHighlights, sentenceId, activeColorId) {
   const nextHighlights = {
     ...(chapterHighlights || {}),
   }
@@ -394,7 +393,7 @@ export function togglePrototypeSentenceHighlight(chapterHighlights, sentenceId, 
   return nextHighlights
 }
 
-export function removePrototypeSentenceHighlight(chapterHighlights, sentenceId) {
+export function removeSentenceHighlight(chapterHighlights, sentenceId) {
   const nextHighlights = {
     ...(chapterHighlights || {}),
   }
@@ -406,14 +405,14 @@ export function removePrototypeSentenceHighlight(chapterHighlights, sentenceId) 
   return nextHighlights
 }
 
-export function createPastedPrototypeChapterContent(text) {
+export function createPastedChapterContent(text) {
   const content = String(text || '').trim()
 
   if (!content) {
     return null
   }
 
-  const paragraphTexts = splitPrototypeReadableParagraphs(content)
+  const paragraphTexts = splitReadableParagraphs(content)
 
   return {
     id: PASTED_CHAPTER_ID,
@@ -436,7 +435,7 @@ export function createPastedPrototypeChapterContent(text) {
             highlighted: false,
             text: sentence,
             translation: '',
-            tokens: createPastedPrototypeSentenceTokens(sentence, sentenceId),
+            tokens: createPastedSentenceTokens(sentence, sentenceId),
           }
         }),
       }
@@ -444,7 +443,7 @@ export function createPastedPrototypeChapterContent(text) {
   }
 }
 
-function createPastedPrototypeSentenceTokens(sentence, sentenceId) {
+function createPastedSentenceTokens(sentence, sentenceId) {
   let tokenIndex = 0
 
   return splitSentenceIntoTokens(sentence).map((token) => {

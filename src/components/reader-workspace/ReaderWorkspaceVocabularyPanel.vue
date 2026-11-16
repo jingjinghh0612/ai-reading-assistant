@@ -1,5 +1,5 @@
 <template>
-  <aside class="prototype-assistant word-definition-panel" aria-label="单词释义">
+  <aside class="workspace-vocabulary-panel word-definition-panel" aria-label="单词释义">
     <header class="word-panel-header">
       <div>
         <p>本地词典</p>
@@ -21,7 +21,7 @@
         <p v-if="word.explanation" class="word-explanation">{{ word.explanation }}</p>
 
         <p v-if="isWordLoading" class="translation-loading">
-          正在查询 AI 词典<span v-if="loadingWord">：{{ loadingWord }}</span>
+          正在查询释义<span v-if="loadingWord">：{{ loadingWord }}</span>
         </p>
         <div v-else-if="wordErrorMessage" class="translation-error">
           <p>{{ wordErrorMessage }}</p>
@@ -58,7 +58,7 @@
         </dl>
 
         <button
-          class="wordbook-button"
+          class="vocabulary-button"
           :class="{ added: isAdded }"
           type="button"
           @click="$emit(isAdded ? 'remove-word' : 'add-word')"
@@ -67,14 +67,14 @@
         </button>
 
         <button
-          class="wordbook-link-button"
+          class="session-vocabulary-link-button"
           type="button"
-          @click="$emit('show-wordbook')"
+          @click="$emit('show-session-vocabulary')"
         >
           查看本地生词本
         </button>
 
-        <p v-if="message" class="wordbook-message">{{ message }}</p>
+        <p v-if="message" class="vocabulary-message">{{ message }}</p>
       </section>
 
       <section v-else class="word-panel-empty">
@@ -103,21 +103,21 @@
           </button>
         </div>
 
-        <section class="local-wordbook-panel">
-          <div class="local-wordbook-heading">
+        <section class="session-vocabulary-panel">
+          <div class="session-vocabulary-heading">
             <strong>本地生词本</strong>
-            <span>{{ wordbook.length }} 个</span>
+            <span>{{ sessionVocabulary.length }} 个</span>
           </div>
-          <p v-if="!wordbook.length" class="local-wordbook-empty">本轮还没有加入生词</p>
+          <p v-if="!sessionVocabulary.length" class="session-vocabulary-empty">本轮还没有加入生词</p>
 
-          <div v-else class="local-wordbook-list">
+          <div v-else class="session-vocabulary-list">
             <div
-              v-for="item in wordbook"
+              v-for="item in sessionVocabulary"
               :key="item.wordKey"
-              class="local-wordbook-item"
+              class="session-vocabulary-item"
             >
               <button
-                class="local-wordbook-select"
+                class="session-vocabulary-select"
                 type="button"
                 @click="$emit('select-word', item.selection)"
               >
@@ -127,7 +127,7 @@
                 </span>
               </button>
               <button
-                class="local-wordbook-remove"
+                class="session-vocabulary-remove"
                 type="button"
                 @click.stop="$emit('remove-word', item.wordKey)"
               >
@@ -151,7 +151,7 @@ defineProps({
     type: Array,
     default: () => [],
   },
-  wordbook: {
+  sessionVocabulary: {
     type: Array,
     default: () => [],
   },
@@ -177,5 +177,5 @@ defineProps({
   },
 })
 
-defineEmits(['add-word', 'remove-word', 'select-word', 'retry-word', 'show-wordbook'])
+defineEmits(['add-word', 'remove-word', 'select-word', 'retry-word', 'show-session-vocabulary'])
 </script>

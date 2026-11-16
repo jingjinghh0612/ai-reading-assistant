@@ -2,8 +2,8 @@ import { explainWord } from './aiService.js'
 import { lookupLocalWordDefinition } from './localDictionaryService.js'
 
 const DEFAULT_EXTERNAL_DICTIONARY_TIMEOUT_MS = 5000
-const prototypeWordCache = new Map()
-const pendingPrototypeWords = new Map()
+const wordLookupCache = new Map()
+const pendingWordLookups = new Map()
 
 function readNumberEnv(name, fallbackValue) {
   const value = Number(process.env[name])
@@ -25,7 +25,7 @@ function normalizeText(value) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-function isExternalDetailUsable(detail) {
+function hasUsableWordDetail(detail) {
   return Boolean(normalizeText(detail?.meaning))
 }
 
@@ -49,15 +49,15 @@ function normalizeLookupDetail(detail, source, fallbackWord) {
   }
 }
 
-export async function lookupPrototypeWord(word, options = {}) {
+export async function lookupWord(word, options = {}) {
   const normalizedWord = normalizeWord(word)
 
   if (!normalizedWord) {
     return normalizeLookupDetail(null, 'empty', word)
   }
 
-  const cache = options.cache || prototypeWordCache
-  const pendingRequests = options.pendingRequests || pendingPrototypeWords
+  const cache = options.cache || wordLookupCache
+  const pendingRequests = options.pendingRequests || pendingWordLookups
   const cacheKey = normalizedWord
   const cachedDetail = cache.get(cacheKey)
 
@@ -68,10 +68,11 @@ export async function lookupPrototypeWord(word, options = {}) {
     }
   }
 
+  // 同一个词的并发查询共用一次请求，完成后清理等待记录。
   if (!pendingRequests.has(cacheKey)) {
     pendingRequests.set(
       cacheKey,
-      resolvePrototypeWordLookup(word, cacheKey, cache, options).finally(() => {
+      resolveWordLookup(word, cacheKey, cache, options).finally(() => {
         pendingRequests.delete(cacheKey)
       }),
     )
@@ -80,14 +81,15 @@ export async function lookupPrototypeWord(word, options = {}) {
   return pendingRequests.get(cacheKey)
 }
 
-async function resolvePrototypeWordLookup(word, cacheKey, cache, options) {
+async function resolveWordLookup(word, cacheKey, cache, options) {
+  // 优先查本地词库，其次查已启用的外部词典，最后由 AI 补充。
   const localLookup = options.localLookup || lookupLocalWordDefinition
   const externalLookup = options.externalLookup || fetchExternalDictionaryDetail
   const aiLookup = options.aiLookup || explainWord
   const localDetail = localLookup(word)
   let externalDetail = null
 
-  if (isExternalDetailUsable(localDetail)) {
+  if (hasUsableWordDetail(localDetail)) {
     const detail = normalizeLookupDetail(localDetail, 'local-dictionary', word)
     cache.set(cacheKey, detail)
     return detail
@@ -101,7 +103,7 @@ async function resolvePrototypeWordLookup(word, cacheKey, cache, options) {
     }
   }
 
-  if (isExternalDetailUsable(externalDetail)) {
+  if (hasUsableWordDetail(externalDetail)) {
     const detail = normalizeLookupDetail(externalDetail, 'external-dictionary', word)
     cache.set(cacheKey, detail)
     return detail

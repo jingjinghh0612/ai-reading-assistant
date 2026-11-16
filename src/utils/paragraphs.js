@@ -1,4 +1,4 @@
-export function splitPrototypeReadableParagraphs(text) {
+export function splitReadableParagraphs(text) {
   const content = String(text || '').replace(/\r\n?/g, '\n').trim()
 
   if (!content) {

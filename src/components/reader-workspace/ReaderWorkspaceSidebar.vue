@@ -1,6 +1,6 @@
 <template>
-  <aside class="prototype-sidebar" aria-label="书籍和章节">
-    <section class="prototype-panel">
+  <aside class="workspace-sidebar" aria-label="书籍和章节">
+    <section class="workspace-panel">
       <div class="panel-heading-row">
         <h2>我的书架</h2>
         <button
@@ -55,7 +55,7 @@
       </div>
     </section>
 
-    <section class="prototype-panel chapter-panel">
+    <section class="workspace-panel chapter-panel">
       <div class="panel-heading-row">
         <h2>章节</h2>
         <span class="panel-count">{{ chapters.length }} 章</span>
@@ -80,7 +80,7 @@
       </div>
     </section>
 
-    <section class="prototype-panel progress-panel">
+    <section class="workspace-panel progress-panel">
       <div class="panel-heading-row">
         <h2>阅读进度</h2>
         <span class="panel-count">本地</span>

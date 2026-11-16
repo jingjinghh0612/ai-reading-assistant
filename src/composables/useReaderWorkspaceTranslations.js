@@ -1,12 +1,12 @@
 import { computed, ref } from 'vue'
 import { requestTranslation as defaultRequestTranslation } from '../api/translate.js'
 import {
-  getPrototypeLocalParagraphTranslation,
-  getPrototypeLocalSentenceTranslation,
-  getPrototypeParagraphSourceText,
-  getPrototypeSentenceSourceText,
-  getPrototypeTranslationStateKey,
-} from '../data/readerPrototypeSelectors.js'
+  getLocalParagraphTranslation,
+  getLocalSentenceTranslation,
+  getParagraphSourceText,
+  getSentenceSourceText,
+  createTranslationStateKey,
+} from '../data/readerWorkspaceSelectors.js'
 import {
   createTranslationCacheKey as defaultCreateTranslationCacheKey,
   getCachedTranslation as defaultGetCachedTranslation,
@@ -60,7 +60,7 @@ export function useReaderWorkspaceTranslations({
   const sentenceRequestVersions = Object.create(null)
   let translationRequestVersion = 0
 
-  function getPrototypeChapterStateId() {
+  function getChapterStateId() {
     if (isPastedArticleActive.value && currentChapterContent.value?.id === pastedChapterContent.value?.id) {
       return `${currentChapterContent.value.id}:${pastedArticleVersion.value}`
     }
@@ -68,13 +68,13 @@ export function useReaderWorkspaceTranslations({
     return currentChapter.value?.id || currentChapterContent.value?.id || 'chapter'
   }
 
-  function getPrototypeParagraphStateKey(paragraph) {
-    return getPrototypeTranslationStateKey(getPrototypeChapterStateId(), paragraph?.id || '', 'paragraph')
+  function getParagraphStateKey(paragraph) {
+    return createTranslationStateKey(getChapterStateId(), paragraph?.id || '', 'paragraph')
   }
 
-  function getPrototypeSentenceStateKey(sentence, paragraph) {
-    return getPrototypeTranslationStateKey(
-      getPrototypeChapterStateId(),
+  function getSentenceStateKey(sentence, paragraph) {
+    return createTranslationStateKey(
+      getChapterStateId(),
       paragraph?.id || selectedSentenceParagraphId.value || '',
       sentence?.id || selectedSentenceId.value || '',
     )
@@ -82,8 +82,8 @@ export function useReaderWorkspaceTranslations({
 
   const displayParagraphs = computed(() =>
     paragraphs.value.map((paragraph) => {
-      const paragraphStateKey = getPrototypeParagraphStateKey(paragraph)
-      const localTranslation = getPrototypeLocalParagraphTranslation(paragraph)
+      const paragraphStateKey = getParagraphStateKey(paragraph)
+      const localTranslation = getLocalParagraphTranslation(paragraph)
 
       return {
         ...paragraph,
@@ -91,8 +91,8 @@ export function useReaderWorkspaceTranslations({
         isTranslationLoading: Boolean(translationLoadingByParagraphId.value[paragraphStateKey]),
         translationErrorMessage: translationErrorByParagraphId.value[paragraphStateKey] || '',
         sentences: (paragraph.sentences || []).map((sentence) => {
-          const sentenceStateKey = getPrototypeSentenceStateKey(sentence, paragraph)
-          const localSentenceTranslation = getPrototypeLocalSentenceTranslation(sentence)
+          const sentenceStateKey = getSentenceStateKey(sentence, paragraph)
+          const localSentenceTranslation = getLocalSentenceTranslation(sentence)
 
           return {
             ...sentence,
@@ -105,12 +105,13 @@ export function useReaderWorkspaceTranslations({
     }),
   )
 
-  function clearPrototypeSentenceSelection() {
+  function clearSentenceSelection() {
     selectedSentenceId.value = ''
     selectedSentenceParagraphId.value = ''
   }
 
-  function clearPrototypeTranslationState() {
+  function clearTranslationState() {
+    // 清空翻译状态时废弃旧请求版本，防止迟到的译文写回。
     translationRequestVersion += 1
     translationByParagraphId.value = {}
     translationLoadingByParagraphId.value = {}
@@ -122,7 +123,8 @@ export function useReaderWorkspaceTranslations({
     clearRequestVersions(sentenceRequestVersions)
   }
 
-  function getPrototypeTranslation(sourceText, translationType, options = {}) {
+  function requestCachedTranslation(sourceText, translationType, options = {}) {
+    // 按原文和翻译类型查缓存，重复请求共享进行中的翻译，手动重试会重新请求。
     const refresh = Boolean(options.refresh)
     const requestKey = createTranslationCacheKey(sourceText, translationType)
 
@@ -156,11 +158,11 @@ export function useReaderWorkspaceTranslations({
     return translationRequests[requestKey]
   }
 
-  async function loadPrototypeParagraphTranslation(paragraph, options = {}) {
-    const paragraphStateKey = getPrototypeParagraphStateKey(paragraph)
-    const sourceText = getPrototypeParagraphSourceText(paragraph)
+  async function loadParagraphTranslation(paragraph, options = {}) {
+    const paragraphStateKey = getParagraphStateKey(paragraph)
+    const sourceText = getParagraphSourceText(paragraph)
 
-    if (!paragraphStateKey || !sourceText || getPrototypeLocalParagraphTranslation(paragraph)) {
+    if (!paragraphStateKey || !sourceText || getLocalParagraphTranslation(paragraph)) {
       return
     }
 
@@ -174,7 +176,7 @@ export function useReaderWorkspaceTranslations({
     setRecordValue(translationLoadingByParagraphId, paragraphStateKey, true)
 
     try {
-      const translation = await getPrototypeTranslation(sourceText, 'paragraph', options)
+      const translation = await requestCachedTranslation(sourceText, 'paragraph', options)
 
       if (paragraphRequestVersions[paragraphStateKey] !== requestVersion) {
         return
@@ -199,25 +201,25 @@ export function useReaderWorkspaceTranslations({
     }
   }
 
-  function retryPrototypeTranslation(paragraphId) {
+  function retryParagraphTranslation(paragraphId) {
     const paragraph = paragraphs.value.find((item) => item.id === paragraphId)
 
     if (!paragraph) {
       return Promise.resolve()
     }
 
-    const paragraphStateKey = getPrototypeParagraphStateKey(paragraph)
+    const paragraphStateKey = getParagraphStateKey(paragraph)
     setRecordValue(translationByParagraphId, paragraphStateKey, '')
     setRecordValue(translationErrorByParagraphId, paragraphStateKey, '')
 
-    return loadPrototypeParagraphTranslation(paragraph, { refresh: true })
+    return loadParagraphTranslation(paragraph, { refresh: true })
   }
 
-  async function loadPrototypeSentenceTranslation(sentence, paragraph, options = {}) {
-    const sentenceStateKey = getPrototypeSentenceStateKey(sentence, paragraph)
-    const sourceText = getPrototypeSentenceSourceText(sentence)
+  async function loadSentenceTranslation(sentence, paragraph, options = {}) {
+    const sentenceStateKey = getSentenceStateKey(sentence, paragraph)
+    const sourceText = getSentenceSourceText(sentence)
 
-    if (!sentenceStateKey || !sourceText || getPrototypeLocalSentenceTranslation(sentence)) {
+    if (!sentenceStateKey || !sourceText || getLocalSentenceTranslation(sentence)) {
       return
     }
 
@@ -231,7 +233,7 @@ export function useReaderWorkspaceTranslations({
     setRecordValue(translationLoadingBySentenceId, sentenceStateKey, true)
 
     try {
-      const translation = await getPrototypeTranslation(sourceText, 'sentence', options)
+      const translation = await requestCachedTranslation(sourceText, 'sentence', options)
 
       if (sentenceRequestVersions[sentenceStateKey] !== requestVersion) {
         return
@@ -256,7 +258,7 @@ export function useReaderWorkspaceTranslations({
     }
   }
 
-  function selectPrototypeSentence({ sentence, paragraph }) {
+  function selectSentence({ sentence, paragraph }) {
     if (!sentence?.id || !paragraph?.id) {
       return Promise.resolve()
     }
@@ -264,10 +266,10 @@ export function useReaderWorkspaceTranslations({
     selectedSentenceId.value = sentence.id
     selectedSentenceParagraphId.value = paragraph.id
 
-    return loadPrototypeSentenceTranslation(sentence, paragraph)
+    return loadSentenceTranslation(sentence, paragraph)
   }
 
-  function retryPrototypeSentenceTranslation({ sentenceId, paragraphId }) {
+  function retrySentenceTranslation({ sentenceId, paragraphId }) {
     const paragraph = paragraphs.value.find((item) => item.id === paragraphId)
     const sentence = paragraph?.sentences?.find((item) => item.id === sentenceId)
 
@@ -277,35 +279,35 @@ export function useReaderWorkspaceTranslations({
 
     selectedSentenceId.value = sentence.id
     selectedSentenceParagraphId.value = paragraph.id
-    const sentenceStateKey = getPrototypeSentenceStateKey(sentence, paragraph)
+    const sentenceStateKey = getSentenceStateKey(sentence, paragraph)
     setRecordValue(translationBySentenceId, sentenceStateKey, '')
     setRecordValue(translationErrorBySentenceId, sentenceStateKey, '')
 
-    return loadPrototypeSentenceTranslation(sentence, paragraph, { refresh: true })
+    return loadSentenceTranslation(sentence, paragraph, { refresh: true })
   }
 
-  function translatePrototypeParagraph(paragraphId) {
+  function translateParagraph(paragraphId) {
     const paragraph = paragraphs.value.find((item) => item.id === paragraphId)
 
     if (!paragraph) {
       return Promise.resolve()
     }
 
-    return loadPrototypeParagraphTranslation(paragraph)
+    return loadParagraphTranslation(paragraph)
   }
 
   return {
-    clearPrototypeSentenceSelection,
-    clearPrototypeTranslationState,
+    clearSentenceSelection,
+    clearTranslationState,
     displayParagraphs,
-    loadPrototypeParagraphTranslation,
-    loadPrototypeSentenceTranslation,
-    retryPrototypeSentenceTranslation,
-    retryPrototypeTranslation,
-    selectPrototypeSentence,
+    loadParagraphTranslation,
+    loadSentenceTranslation,
+    retrySentenceTranslation,
+    retryParagraphTranslation,
+    selectSentence,
     selectedSentenceId,
     selectedSentenceParagraphId,
-    translatePrototypeParagraph,
+    translateParagraph,
     translationByParagraphId,
     translationBySentenceId,
     translationErrorByParagraphId,

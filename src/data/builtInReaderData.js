@@ -1,4 +1,4 @@
-export const prototypeBooks = [
+export const builtInBooks = [
   {
     id: 'quiet-observatory',
     title: 'The Quiet Observatory',
@@ -47,7 +47,7 @@ export const prototypeBooks = [
   },
 ]
 
-export const prototypeChapterContent = {
+export const builtInChapterContent = {
   'chapter-3': {
     id: 'chapter-3',
     bookId: 'quiet-observatory',
@@ -506,7 +506,7 @@ export const prototypeChapterContent = {
   },
 }
 
-export const prototypeDictionary = {
+export const builtInDictionary = {
   plan: {
     id: 'plan',
     lemma: 'plan',
