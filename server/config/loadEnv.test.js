@@ -8,11 +8,11 @@ import { loadEnv } from './loadEnv.js'
 describe('server env loader', () => {
   it('loads .env.local before .env without overriding existing env values', () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'reader-env-'))
-    fs.writeFileSync(path.join(tempDir, '.env'), 'GEMINI_API_KEY=from-env\nGEMINI_MODEL=from-env-model\n')
-    fs.writeFileSync(path.join(tempDir, '.env.local'), 'GEMINI_API_KEY=from-local\n')
+    fs.writeFileSync(path.join(tempDir, '.env'), 'DEEPSEEK_API_KEY=from-env\nDEEPSEEK_MODEL=from-env-model\n')
+    fs.writeFileSync(path.join(tempDir, '.env.local'), 'DEEPSEEK_API_KEY=from-local\n')
 
     const targetEnv = {
-      GEMINI_MODEL: 'existing-model',
+      DEEPSEEK_MODEL: 'existing-model',
     }
 
     loadEnv({
@@ -21,7 +21,7 @@ describe('server env loader', () => {
       force: true,
     })
 
-    assert.equal(targetEnv.GEMINI_API_KEY, 'from-local')
-    assert.equal(targetEnv.GEMINI_MODEL, 'existing-model')
+    assert.equal(targetEnv.DEEPSEEK_API_KEY, 'from-local')
+    assert.equal(targetEnv.DEEPSEEK_MODEL, 'existing-model')
   })
 })

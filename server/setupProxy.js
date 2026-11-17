@@ -2,7 +2,6 @@ import { ProxyAgent, setGlobalDispatcher } from 'undici'
 
 function getProxyUrl() {
   return (
-    process.env.GEMINI_PROXY_URL ||
     process.env.HTTPS_PROXY ||
     process.env.HTTP_PROXY ||
     process.env.ALL_PROXY ||
@@ -37,10 +36,10 @@ export function setupProxy() {
   }
 
   if (isInvalidLocalProxy(proxyUrl)) {
-    console.warn('Invalid proxy 127.0.0.1:9 ignored. Set GEMINI_PROXY_URL instead.')
+    console.warn('Invalid proxy URL ignored. Check HTTPS_PROXY in your environment.')
     return
   }
 
   setGlobalDispatcher(new ProxyAgent(proxyUrl))
-  console.log(`Gemini proxy enabled: ${hideProxyAuth(proxyUrl)}`)
+  console.log(`HTTP proxy enabled: ${hideProxyAuth(proxyUrl)}`)
 }

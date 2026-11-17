@@ -1,20 +1,13 @@
 import '../config/loadEnv.js'
-import { GoogleGenAI } from '@google/genai'
 import {
   createSummarizePrompt,
   createTranslatePrompt,
   createWordExplainPrompt,
 } from './prompts.js'
 
-const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash-lite'
 const DEFAULT_DEEPSEEK_MODEL = 'deepseek-v4-flash'
-const DEFAULT_TIMEOUT_MS = 25000
-const DEFAULT_RETRY_COUNT = 2
-const DEFAULT_RETRY_DELAY_MS = 1200
 const DEFAULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000
-const GEMINI_ERROR_MESSAGE = 'AI service is temporarily unavailable. Please try again.'
-const GEMINI_QUOTA_ERROR_MESSAGE =
-  'Gemini quota has been reached. Please wait and try again later, or use another API key/model.'
+const AI_ERROR_MESSAGE = 'AI service is temporarily unavailable. Please try again.'
 const TRANSLATION_ERROR_MESSAGE = '翻译失败，请稍后重试。'
 const DEEPSEEK_ENDPOINT = 'https://api.deepseek.com/chat/completions'
 const translationCache = new Map()
@@ -38,105 +31,26 @@ function normalizeWord(word) {
     .trim()
 }
 
-function hasGeminiConfig() {
-  return Boolean(process.env.GEMINI_API_KEY)
-}
-
 function hasDeepSeekConfig() {
   return Boolean(process.env.DEEPSEEK_API_KEY)
-}
-
-function getAiProvider() {
-  return String(process.env.AI_PROVIDER || 'gemini').trim().toLowerCase()
-}
-
-function getGeminiModel() {
-  return process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL
 }
 
 function getDeepSeekModel() {
   return process.env.DEEPSEEK_MODEL || DEFAULT_DEEPSEEK_MODEL
 }
 
-function getGeminiTimeoutMs() {
-  return readNumberEnv('GEMINI_TIMEOUT_MS', DEFAULT_TIMEOUT_MS)
-}
-
-function getGeminiRetryCount() {
-  return readNumberEnv('GEMINI_RETRY_COUNT', DEFAULT_RETRY_COUNT)
-}
-
-function getGeminiRetryDelayMs() {
-  return readNumberEnv('GEMINI_RETRY_DELAY_MS', DEFAULT_RETRY_DELAY_MS)
-}
-
 function getAiCacheTtlMs() {
   return readNumberEnv('AI_CACHE_TTL_MS', DEFAULT_CACHE_TTL_MS)
 }
 
-function createGeminiClient() {
-  return new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY,
-  })
-}
-
-function isRetryableError(error) {
-  if (isQuotaError(error)) {
-    return false
-  }
-
-  const message = String(error?.message || '').toLowerCase()
-
-  return (
-    message.includes('fetch failed') ||
-    message.includes('timeout') ||
-    message.includes('temporarily unavailable') ||
-    message.includes('429') ||
-    message.includes('500') ||
-    message.includes('502') ||
-    message.includes('503') ||
-    message.includes('504')
-  )
-}
-
-function isQuotaError(error) {
-  const message = String(error?.message || '').toLowerCase()
-  return message.includes('429') || message.includes('quota') || message.includes('resource_exhausted')
-}
-
-function getFriendlyGeminiError(error) {
-  if (isQuotaError(error)) {
-    return GEMINI_QUOTA_ERROR_MESSAGE
-  }
-
-  return GEMINI_ERROR_MESSAGE
-}
-
-function getSafeErrorSummary(error) {
-  if (isQuotaError(error)) {
-    return 'quota exceeded'
-  }
-
-  return error?.message || 'unknown error'
-}
-
-function createGeminiServiceError(error) {
-  const serviceError = new Error(getFriendlyGeminiError(error))
-  serviceError.statusCode = isQuotaError(error) ? 429 : 503
-  return serviceError
-}
-
-function createTranslationServiceError(message = TRANSLATION_ERROR_MESSAGE, statusCode = 503) {
+function createAiServiceError(message, statusCode = 503) {
   const serviceError = new Error(message)
   serviceError.statusCode = statusCode
   return serviceError
 }
 
 function createTranslationCacheKey(text, type = 'sentence') {
-  const provider = getAiProvider()
-  const model = provider === 'deepseek' ? getDeepSeekModel() : getGeminiModel()
-
-  return `${provider}:${model}:${type}::${text.trim()}`
+  return `${getDeepSeekModel()}:${type}::${text.trim()}`
 }
 
 function getCachedValue(cache, key, options = {}) {
@@ -175,65 +89,9 @@ function getPendingTranslation(cacheKey, requestFactory) {
   return pendingTranslations.get(cacheKey)
 }
 
-async function withTimeout(promise, timeoutMs) {
-  let timeoutId
-
-  const timeoutPromise = new Promise((_, reject) => {
-    timeoutId = setTimeout(() => {
-      reject(new Error(`Gemini request timeout after ${timeoutMs}ms.`))
-    }, timeoutMs)
-  })
-
-  try {
-    return await Promise.race([promise, timeoutPromise])
-  } finally {
-    clearTimeout(timeoutId)
-  }
-}
-
-async function callGeminiOnce(prompt) {
-  const ai = createGeminiClient()
-  const response = await ai.models.generateContent({
-    model: getGeminiModel(),
-    contents: prompt,
-  })
-
-  const text = response.text?.trim()
-
-  if (!text) {
-    throw new Error('Gemini returned an empty response.')
-  }
-
-  return text
-}
-
-async function callGemini(prompt) {
-  const timeoutMs = getGeminiTimeoutMs()
-  const retryCount = getGeminiRetryCount()
-  const retryDelayMs = getGeminiRetryDelayMs()
-  let lastError
-
-  for (let attempt = 0; attempt <= retryCount; attempt += 1) {
-    try {
-      return await withTimeout(callGeminiOnce(prompt), timeoutMs)
-    } catch (error) {
-      lastError = error
-
-      if (attempt >= retryCount || !isRetryableError(error)) {
-        break
-      }
-
-      await wait(retryDelayMs * (attempt + 1))
-    }
-  }
-
-  console.warn(`Gemini request failed after retries: ${getSafeErrorSummary(lastError)}`)
-  throw createGeminiServiceError(lastError)
-}
-
-async function callDeepSeek(prompt) {
+async function callDeepSeek(prompt, errorMessage = AI_ERROR_MESSAGE) {
   if (!hasDeepSeekConfig()) {
-    throw createTranslationServiceError('DeepSeek API key is not configured.', 500)
+    throw createAiServiceError('DeepSeek API key is not configured.', 500)
   }
 
   let response
@@ -259,9 +117,8 @@ async function callDeepSeek(prompt) {
         stream: false,
       }),
     })
-  } catch (error) {
-    console.warn(`DeepSeek request failed: ${getSafeErrorSummary(error)}`)
-    throw createTranslationServiceError()
+  } catch {
+    throw createAiServiceError(errorMessage)
   }
 
   let data
@@ -269,34 +126,21 @@ async function callDeepSeek(prompt) {
   try {
     data = await response.json()
   } catch {
-    throw createTranslationServiceError()
+    throw createAiServiceError(errorMessage)
   }
 
   if (!response.ok) {
-    throw createTranslationServiceError(TRANSLATION_ERROR_MESSAGE, response.status || 503)
+    throw createAiServiceError(errorMessage, response.status || 503)
   }
 
-  const text = data?.choices?.[0]?.message?.content?.trim()
+  const content = data?.choices?.[0]?.message?.content
+  const text = typeof content === 'string' ? content.trim() : ''
 
   if (!text) {
-    throw createTranslationServiceError()
+    throw createAiServiceError(errorMessage)
   }
 
   return text
-}
-
-async function translateWithSelectedProvider(prompt) {
-  const provider = getAiProvider()
-
-  if (provider === 'deepseek') {
-    return callDeepSeek(prompt)
-  }
-
-  if (provider === 'gemini') {
-    return cleanTextResponse(await callGemini(prompt))
-  }
-
-  throw createTranslationServiceError(`Unsupported AI provider: ${provider}`, 500)
 }
 
 async function useMockWithoutApiKey(mockRequest, delayMs = 300) {
@@ -371,10 +215,6 @@ const MOCK_WORDS = {
   },
 }
 
-function mockTranslateSentence(text) {
-  return `模拟翻译：${text}`
-}
-
 function mockExplainWord(word) {
   const normalizedWord = normalizeWord(word)
   const mock = MOCK_WORDS[normalizedWord]
@@ -405,12 +245,6 @@ function mockSummarizeText(text) {
 }
 
 export async function translateSentence(text, type = 'sentence') {
-  const provider = getAiProvider()
-
-  if (provider === 'gemini' && !hasGeminiConfig()) {
-    return useMockWithoutApiKey(() => mockTranslateSentence(text), 400)
-  }
-
   const cacheKey = createTranslationCacheKey(text, type)
   const cachedTranslation = getCachedValue(translationCache, cacheKey)
 
@@ -421,10 +255,10 @@ export async function translateSentence(text, type = 'sentence') {
   try {
     return await getPendingTranslation(cacheKey, async () => {
       const prompt = createTranslatePrompt(text, type)
-      const translation = cleanTextResponse(await translateWithSelectedProvider(prompt))
+      const translation = cleanTextResponse(await callDeepSeek(prompt, TRANSLATION_ERROR_MESSAGE))
 
       if (!translation) {
-        throw createTranslationServiceError()
+        throw createAiServiceError(TRANSLATION_ERROR_MESSAGE)
       }
 
       setCachedValue(translationCache, cacheKey, translation)
@@ -445,12 +279,12 @@ export async function translateSentence(text, type = 'sentence') {
 }
 
 export async function explainWord(word) {
-  if (!hasGeminiConfig()) {
+  if (!hasDeepSeekConfig()) {
     return useMockWithoutApiKey(() => mockExplainWord(word), 300)
   }
 
   const prompt = createWordExplainPrompt(word)
-  const parsed = parseJsonObject(await callGemini(prompt))
+  const parsed = parseJsonObject(await callDeepSeek(prompt))
 
   if (!parsed) {
     throw new Error('AI returned an invalid word explanation. Please try again.')
@@ -466,12 +300,12 @@ export async function explainWord(word) {
 }
 
 export async function summarizeText(text) {
-  if (!hasGeminiConfig()) {
+  if (!hasDeepSeekConfig()) {
     return useMockWithoutApiKey(() => mockSummarizeText(text), 400)
   }
 
   const prompt = createSummarizePrompt(text)
-  const parsed = parseJsonObject(await callGemini(prompt))
+  const parsed = parseJsonObject(await callDeepSeek(prompt))
 
   if (!parsed) {
     throw new Error('AI returned an invalid summary. Please try again.')

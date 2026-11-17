@@ -8,7 +8,7 @@
 
 - 前端：Vue 3 Composition API、Vue Router、Vite
 - 后端：Node.js、Express
-- AI：DeepSeek API 作为默认翻译 provider，默认模型 `deepseek-v4-flash`；Gemini 保留为可选 provider 和旧功能兼容
+- AI：DeepSeek API 提供翻译、单词释义和摘要，默认模型 `deepseek-v4-flash`
 - 存储：localStorage 与页面内存态
 - 测试：Node.js 内置 test runner
 - 样式：原生 CSS
@@ -21,7 +21,7 @@
 - 右侧单词面板展示本地词典、外部词典或 AI 兜底释义，并支持加入生词本。
 - 生词本保留基础管理能力，支持搜索、删除、掌握标记和复习状态筛选。
 - 复习页保留基础到期单词展示和“记得 / 忘记”记录能力，后续再完善为完整学习闭环。
-- AI 请求支持超时、重试、缓存、错误提示和无 API Key 时的 mock fallback。
+- 翻译支持缓存和错误提示。单词释义和摘要在无 API Key 时提供模拟数据。
 - `/reader` 提供新版阅读工作台，包含书架、章节、正文、右侧单词面板和手动句子高亮。
 - 新版阅读页高亮支持显示/隐藏、高亮笔模式、五种颜色、清除模式、按章节页面内记忆和刷新重置。
 
@@ -44,9 +44,9 @@ ai-reading-app-github-ready
 ├─ public
 ├─ server
 │  ├─ index.js                 # Express 后端入口，提供 API 和静态文件服务
-│  ├─ setupProxy.js             # 可选代理配置，用于 Gemini 请求走本地代理
+│  ├─ setupProxy.js             # 后端请求的可选代理配置
 │  └─ services
-│     ├─ aiService.js           # AI 请求、超时、重试、缓存和模拟结果
+│     ├─ aiService.js           # DeepSeek 请求、翻译缓存和模拟结果
 │     ├─ wordLookupService.js   # 本地词库、外部词典和 AI 查词
 │     └─ prompts.js             # 翻译、单词解释、摘要 prompt
 ├─ src
@@ -138,33 +138,21 @@ Copy-Item .env.example .env
 `.env.example` 中包含：
 
 ```env
-AI_PROVIDER=deepseek
 DEEPSEEK_API_KEY=your_deepseek_api_key_here
 DEEPSEEK_MODEL=deepseek-v4-flash
 
-GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-2.5-flash-lite
-GEMINI_TIMEOUT_MS=25000
-GEMINI_RETRY_COUNT=2
-GEMINI_RETRY_DELAY_MS=1200
 AI_CACHE_TTL_MS=86400000
-GEMINI_PROXY_URL=http://127.0.0.1:7890
+# HTTPS_PROXY=http://127.0.0.1:7890
 ```
 
 说明：
 
-- `AI_PROVIDER`：AI 翻译 provider，可选 `deepseek` 或 `gemini`，当前默认使用 `deepseek`。
 - `DEEPSEEK_API_KEY`：真实 DeepSeek API Key，只放在后端环境变量中，不要提交。
 - `DEEPSEEK_MODEL`：DeepSeek 模型名称，当前默认 `deepseek-v4-flash`。
-- `GEMINI_API_KEY`：真实 Gemini API Key，只放在后端环境变量中，用于切换 provider 或旧功能兼容，不要提交。
-- `GEMINI_MODEL`：Gemini 模型名称，当前默认 `gemini-2.5-flash-lite`。
-- `GEMINI_TIMEOUT_MS`：单次 AI 请求超时时间。
-- `GEMINI_RETRY_COUNT`：失败后的重试次数。
-- `GEMINI_RETRY_DELAY_MS`：重试基础等待时间。
 - `AI_CACHE_TTL_MS`：AI 翻译缓存有效期。
-- `GEMINI_PROXY_URL`：可选，本地网络需要代理访问 Gemini 时使用。
+- `HTTPS_PROXY`：可选，后端请求需要走代理时设置。
 
-当 `AI_PROVIDER=deepseek` 时，句子和段落翻译会调用 DeepSeek；如果缺少 `DEEPSEEK_API_KEY`，后端会返回明确的配置错误。Gemini provider 仍保留 mock fallback，方便本地开发和答辩演示。
+配置 `DEEPSEEK_API_KEY` 后，句子和段落翻译、AI 释义和摘要都会调用 DeepSeek。缺少密钥时，翻译接口会返回配置错误。
 
 ## 后端接口
 
@@ -178,7 +166,7 @@ POST /api/summarize
 
 工作台使用 `/api/word-lookup` 查词。`/api/prototype-word-explain` 是同一查词服务的兼容地址，旧版阅读页继续使用 `/api/word-explain`。
 
-前端只请求本项目后端接口，不直接暴露或读取 `DEEPSEEK_API_KEY`、`GEMINI_API_KEY`。
+`DEEPSEEK_API_KEY` 由后端读取，前端通过本项目的后端接口获取结果。
 
 ## 测试与构建
 

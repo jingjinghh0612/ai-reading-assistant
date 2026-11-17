@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, it } from 'node:test'
-import { translateSentence } from './aiService.js'
+import { explainWord, summarizeText, translateSentence } from './aiService.js'
 
 const ORIGINAL_ENV = { ...process.env }
 const originalFetch = globalThis.fetch
@@ -18,11 +18,8 @@ function resetEnv() {
 }
 
 function clearAiEnv() {
-  delete process.env.AI_PROVIDER
   delete process.env.DEEPSEEK_API_KEY
   delete process.env.DEEPSEEK_MODEL
-  delete process.env.GEMINI_API_KEY
-  delete process.env.GEMINI_MODEL
 }
 
 function installDeepSeekFetch(responseFactory) {
@@ -41,7 +38,7 @@ function installDeepSeekFetch(responseFactory) {
   return calls
 }
 
-describe('AI translation service providers', () => {
+describe('DeepSeek AI service', () => {
   beforeEach(() => {
     resetEnv()
     clearAiEnv()
@@ -52,8 +49,7 @@ describe('AI translation service providers', () => {
     globalThis.fetch = originalFetch
   })
 
-  it('calls the DeepSeek chat completions endpoint when AI_PROVIDER is deepseek', async () => {
-    process.env.AI_PROVIDER = 'deepseek'
+  it('calls the DeepSeek chat completions endpoint for translation', async () => {
     process.env.DEEPSEEK_API_KEY = 'test-deepseek-key'
 
     const calls = installDeepSeekFetch(() => ({
@@ -77,7 +73,6 @@ describe('AI translation service providers', () => {
   })
 
   it('uses the translation cache on repeated DeepSeek requests for the same text and type', async () => {
-    process.env.AI_PROVIDER = 'deepseek'
     process.env.DEEPSEEK_API_KEY = 'test-deepseek-key'
 
     const calls = installDeepSeekFetch(() => ({
@@ -97,7 +92,6 @@ describe('AI translation service providers', () => {
   })
 
   it('uses the sentence translation prompt for DeepSeek sentence requests', async () => {
-    process.env.AI_PROVIDER = 'deepseek'
     process.env.DEEPSEEK_API_KEY = 'test-deepseek-key'
 
     const calls = installDeepSeekFetch(() => ({
@@ -118,7 +112,6 @@ describe('AI translation service providers', () => {
   })
 
   it('uses the paragraph translation prompt for DeepSeek paragraph requests', async () => {
-    process.env.AI_PROVIDER = 'deepseek'
     process.env.DEEPSEEK_API_KEY = 'test-deepseek-key'
 
     const calls = installDeepSeekFetch(() => ({
@@ -138,8 +131,7 @@ describe('AI translation service providers', () => {
     assert.match(prompt, /只输出译文，不要解释/)
   })
 
-  it('returns a configuration error when DeepSeek is selected without an API key', async () => {
-    process.env.AI_PROVIDER = 'deepseek'
+  it('returns a configuration error when translation has no API key', async () => {
     const calls = installDeepSeekFetch(() => {
       throw new Error('fetch should not be called')
     })
@@ -152,7 +144,6 @@ describe('AI translation service providers', () => {
   })
 
   it('normalizes DeepSeek API failures to a safe translation error', async () => {
-    process.env.AI_PROVIDER = 'deepseek'
     process.env.DEEPSEEK_API_KEY = 'test-deepseek-key'
 
     installDeepSeekFetch(() => ({
@@ -169,15 +160,47 @@ describe('AI translation service providers', () => {
     )
   })
 
-  it('keeps the existing Gemini/mock provider path available when AI_PROVIDER is gemini', async () => {
-    process.env.AI_PROVIDER = 'gemini'
+  it('uses DeepSeek for word explanations', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-deepseek-key'
+
+    const detail = {
+      word: 'learn',
+      meaning: '学习',
+      definition: 'To gain knowledge.',
+      partOfSpeech: 'verb',
+      example: 'I learn English.',
+    }
+    const calls = installDeepSeekFetch(() => ({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify(detail) } }] }),
+    }))
+
+    assert.deepEqual(await explainWord('learn'), detail)
+    assert.match(calls[0].body.messages[0].content, /Word:\s+learn/)
+  })
+
+  it('uses DeepSeek for summaries', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-deepseek-key'
+
+    const summary = { summary: '持续阅读有助于学习英语。', keywords: ['reading', 'learning', 'English'] }
+    const calls = installDeepSeekFetch(() => ({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify(summary) } }] }),
+    }))
+
+    assert.deepEqual(await summarizeText('Read English regularly.'), summary)
+    assert.match(calls[0].body.messages[0].content, /Article:\s+Read English regularly\./)
+  })
+
+  it('keeps local word and summary examples available without an API key', async () => {
     const calls = installDeepSeekFetch(() => {
       throw new Error('DeepSeek should not be called')
     })
 
-    const translation = await translateSentence('Gemini fallback path.', 'sentence')
+    const [detail, summary] = await Promise.all([explainWord('learn'), summarizeText('Read every day.')])
 
-    assert.match(translation, /Gemini fallback path\./)
+    assert.match(detail.meaning, /学习/)
+    assert.match(summary.summary, /模拟摘要：Read every day\./)
     assert.equal(calls.length, 0)
   })
 })
