@@ -140,6 +140,7 @@ Copy-Item .env.example .env
 ```env
 DEEPSEEK_API_KEY=your_deepseek_api_key_here
 DEEPSEEK_MODEL=deepseek-v4-flash
+DEEPSEEK_TIMEOUT_MS=25000
 
 AI_CACHE_TTL_MS=86400000
 # HTTPS_PROXY=http://127.0.0.1:7890
@@ -149,6 +150,7 @@ AI_CACHE_TTL_MS=86400000
 
 - `DEEPSEEK_API_KEY`：真实 DeepSeek API Key，只放在后端环境变量中，不要提交。
 - `DEEPSEEK_MODEL`：DeepSeek 模型名称，当前默认 `deepseek-v4-flash`。
+- `DEEPSEEK_TIMEOUT_MS`：DeepSeek 单次请求的总超时，覆盖连接、等待响应及读取响应体；默认 25000 毫秒，超时后中止请求。
 - `AI_CACHE_TTL_MS`：AI 翻译缓存有效期。
 - `HTTPS_PROXY`：可选，后端请求需要走代理时设置。
 

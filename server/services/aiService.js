@@ -6,6 +6,7 @@ import {
 } from './prompts.js'
 
 const DEFAULT_DEEPSEEK_MODEL = 'deepseek-v4-flash'
+const DEFAULT_TIMEOUT_MS = 25000
 const DEFAULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000
 const AI_ERROR_MESSAGE = 'AI service is temporarily unavailable. Please try again.'
 const TRANSLATION_ERROR_MESSAGE = '翻译失败，请稍后重试。'
@@ -94,53 +95,63 @@ async function callDeepSeek(prompt, errorMessage = AI_ERROR_MESSAGE) {
     throw createAiServiceError('DeepSeek API key is not configured.', 500)
   }
 
-  let response
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => {
+    controller.abort()
+  }, readNumberEnv('DEEPSEEK_TIMEOUT_MS', DEFAULT_TIMEOUT_MS))
 
   try {
-    response = await fetch(DEEPSEEK_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: getDeepSeekModel(),
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        thinking: {
-          type: 'disabled',
+    let response
+
+    try {
+      response = await fetch(DEEPSEEK_ENDPOINT, {
+        signal: controller.signal,
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+          'Content-Type': 'application/json',
         },
-        stream: false,
-      }),
-    })
-  } catch {
-    throw createAiServiceError(errorMessage)
+        body: JSON.stringify({
+          model: getDeepSeekModel(),
+          messages: [
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          thinking: {
+            type: 'disabled',
+          },
+          stream: false,
+        }),
+      })
+    } catch {
+      throw createAiServiceError(errorMessage)
+    }
+
+    let data
+
+    try {
+      data = await response.json()
+    } catch {
+      throw createAiServiceError(errorMessage)
+    }
+
+    if (!response.ok) {
+      throw createAiServiceError(errorMessage, response.status || 503)
+    }
+
+    const content = data?.choices?.[0]?.message?.content
+    const text = typeof content === 'string' ? content.trim() : ''
+
+    if (!text) {
+      throw createAiServiceError(errorMessage)
+    }
+
+    return text
+  } finally {
+    clearTimeout(timeoutId)
   }
-
-  let data
-
-  try {
-    data = await response.json()
-  } catch {
-    throw createAiServiceError(errorMessage)
-  }
-
-  if (!response.ok) {
-    throw createAiServiceError(errorMessage, response.status || 503)
-  }
-
-  const content = data?.choices?.[0]?.message?.content
-  const text = typeof content === 'string' ? content.trim() : ''
-
-  if (!text) {
-    throw createAiServiceError(errorMessage)
-  }
-
-  return text
 }
 
 async function useMockWithoutApiKey(mockRequest, delayMs = 300) {
