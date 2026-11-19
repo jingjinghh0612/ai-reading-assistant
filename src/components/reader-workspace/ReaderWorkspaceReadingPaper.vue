@@ -2,7 +2,7 @@
   <section class="workspace-reading-paper">
     <header class="paper-workspace-header">
       <div>
-        <p>Chapter {{ chapter.number }} · {{ chapter.title }}</p>
+        <p>第 {{ chapter.number }} 章</p>
         <h1>{{ chapter.title }}</h1>
       </div>
     </header>
@@ -12,9 +12,9 @@
         v-for="paragraph in paragraphs"
         :key="paragraph.id"
         class="paragraph-block"
-        :class="{ current: selectedParagraphId ? paragraph.id === selectedParagraphId : paragraph.active }"
+        :class="{ 'has-lookup': paragraph.id === selectedParagraphId }"
       >
-        <p class="english-text">
+        <p class="english-text" lang="en">
           <template
             v-for="sentence in paragraph.sentences"
             :key="sentence.id"
@@ -26,8 +26,8 @@
               :tabindex="isHighlightMode ? 0 : null"
               @click="handleSentenceClick(sentence, paragraph)"
               @dblclick="handleSentenceDoubleClick(sentence, paragraph)"
-              @keydown.enter="handleSentenceClick(sentence, paragraph)"
-              @keydown.space.prevent="handleSentenceClick(sentence, paragraph)"
+              @keydown.enter.self="handleSentenceClick(sentence, paragraph)"
+              @keydown.space.self.prevent="handleSentenceClick(sentence, paragraph)"
             >
               <template
                 v-for="token in getClickableSentenceTokens(sentence)"
@@ -42,7 +42,7 @@
                     wordKey: token.wordKey,
                     surface: token.surface || token.text,
                     sentenceId: token.sentenceId,
-                  })"
+                  }, $event)"
                   @dblclick.stop="handleWordDoubleClick(sentence, paragraph)"
                 >
                   {{ token.text }}
@@ -53,6 +53,7 @@
             <span
               v-if="selectedSentenceId === sentence.id"
               class="sentence-translation-text"
+              lang="zh-CN"
             >
               <span v-if="sentence.translation">{{ sentence.translation }}</span>
               <span v-else-if="sentence.isTranslationLoading" class="translation-loading">正在翻译...</span>
@@ -69,10 +70,29 @@
                   重试
                 </button>
               </span>
+              <button class="translate-paragraph-button" type="button" @click="$emit('close-sentence-translation')">
+                收起句译
+              </button>
             </span>
           </template>
         </p>
-        <div v-if="showTranslation" class="translation-text">
+        <button
+          class="translate-paragraph-button paragraph-translation-toggle"
+          type="button"
+          :aria-label="expandedParagraphIds.has(paragraph.id) ? '收起段落译文' : '翻译本段'"
+          :title="expandedParagraphIds.has(paragraph.id) ? '收起段落译文' : '翻译本段'"
+          :aria-expanded="expandedParagraphIds.has(paragraph.id)"
+          :aria-controls="`reader-translation-${paragraph.id}`"
+          @click="toggleParagraphTranslation(paragraph)"
+        >
+          <span class="paragraph-translation-icon" aria-hidden="true"></span>
+        </button>
+        <div
+          v-show="expandedParagraphIds.has(paragraph.id)"
+          :id="`reader-translation-${paragraph.id}`"
+          class="translation-text"
+          lang="zh-CN"
+        >
           <span v-if="paragraph.translation">{{ paragraph.translation }}</span>
           <span v-else-if="paragraph.isTranslationLoading" class="translation-loading">正在生成译文...</span>
           <span v-else-if="paragraph.translationErrorMessage" class="translation-error">
@@ -85,14 +105,6 @@
               重试
             </button>
           </span>
-          <button
-            v-else
-            class="translate-paragraph-button"
-            type="button"
-            @click="$emit('translate-paragraph', paragraph.id)"
-          >
-            翻译本段
-          </button>
         </div>
       </section>
     </article>
@@ -100,6 +112,7 @@
 </template>
 
 <script setup>
+import { ref, watch } from 'vue'
 import { getClickableSentenceTokens } from '../../data/readerWorkspaceSelectors.js'
 
 const props = defineProps({
@@ -109,10 +122,6 @@ const props = defineProps({
   },
   paragraphs: {
     type: Array,
-    required: true,
-  },
-  showTranslation: {
-    type: Boolean,
     required: true,
   },
   showHighlight: {
@@ -148,11 +157,26 @@ const props = defineProps({
 const emit = defineEmits([
   'select-word',
   'select-sentence',
+  'close-sentence-translation',
   'retry-sentence-translation',
   'translate-paragraph',
   'retry-translation',
   'toggle-sentence-highlight',
 ])
+
+const expandedParagraphIds = ref(new Set())
+
+watch(() => props.chapter, () => expandedParagraphIds.value.clear())
+
+function toggleParagraphTranslation(paragraph) {
+  if (expandedParagraphIds.value.delete(paragraph.id)) {
+    return
+  }
+  expandedParagraphIds.value.add(paragraph.id)
+  if (!paragraph.translation && !paragraph.isTranslationLoading) {
+    emit('translate-paragraph', paragraph.id)
+  }
+}
 
 function getSentenceHighlightColor(sentence) {
   return props.sentenceHighlights[sentence.id] || ''
@@ -174,7 +198,9 @@ function handleSentenceClick(sentence, paragraph) {
     return
   }
 
-  selectSentence(sentence, paragraph)
+  if (window.getSelection()?.isCollapsed !== false) {
+    selectSentence(sentence, paragraph)
+  }
 }
 
 function handleSentenceDoubleClick(sentence, paragraph) {

@@ -59,19 +59,14 @@ const dueWordCount = getDueVocabularyWords(getVocabularyWords()).length
 
 <style scoped>
 .learning-home {
-  --home-ink: #18253a;
-  --home-muted: #4e5e74;
-  --home-line: #c9d7ed;
-  --home-accent: #2459d6;
-  --home-accent-strong: #1746b0;
   min-height: 100dvh;
-  color: var(--home-ink);
-  background: #f4f7fc;
+  color: var(--theme-ink);
+  background: var(--theme-page);
 }
 
 .learning-header {
-  border-bottom: 1px solid var(--home-line);
-  background: #fcfdff;
+  border-bottom: 1px solid var(--theme-border);
+  background: var(--theme-raised);
 }
 
 .learning-header-inner,
@@ -102,8 +97,8 @@ const dueWordCount = getDueVocabularyWords(getVocabularyWords()).length
   width: 36px;
   aspect-ratio: 1;
   border-radius: 9px;
-  color: #fff;
-  background: var(--home-accent);
+  color: var(--theme-on-accent);
+  background: var(--theme-accent);
   font-size: 12px;
   font-weight: 800;
 }
@@ -113,7 +108,7 @@ const dueWordCount = getDueVocabularyWords(getVocabularyWords()).length
   padding-inline: 12px;
   border: 0;
   border-radius: 9px;
-  color: var(--home-accent-strong);
+  color: var(--theme-accent-strong);
   background: transparent;
   cursor: pointer;
   font-size: 14px;
@@ -121,7 +116,7 @@ const dueWordCount = getDueVocabularyWords(getVocabularyWords()).length
 }
 
 .learning-language:hover {
-  background: #e8efff;
+  background: var(--theme-accent-soft);
 }
 
 .learning-main {
@@ -146,7 +141,7 @@ h1 {
 .learning-intro {
   max-width: 620px;
   margin-top: 16px;
-  color: var(--home-muted);
+  color: var(--theme-secondary);
   font-size: clamp(1rem, 2vw, 1.125rem);
 }
 
@@ -164,15 +159,15 @@ h1 {
   gap: 18px;
   min-width: 0;
   padding: clamp(22px, 3vw, 38px);
-  border: 1px solid var(--home-line);
+  border: 1px solid var(--theme-border);
   border-radius: 14px;
-  background: #fff;
+  background: var(--theme-raised);
 }
 
 .learning-entry-reading {
   background:
-    radial-gradient(circle, #9fb7e376 1px, transparent 1.5px) right top / 15px 15px,
-    #eaf1ff;
+    radial-gradient(circle, color-mix(in srgb, var(--theme-accent) 19%, transparent) 1px, transparent 1.5px) right top / 15px 15px,
+    var(--theme-accent-soft);
 }
 
 .learning-entry-copy h2 {
@@ -183,7 +178,7 @@ h1 {
 
 .learning-entry-copy p {
   margin-top: 8px;
-  color: var(--home-muted);
+  color: var(--theme-secondary);
 }
 
 .learning-book {
@@ -198,36 +193,36 @@ h1 {
 
 .learning-book span {
   flex: 1;
-  border: 1px solid #8fa9d5;
+  border: 1px solid color-mix(in srgb, var(--theme-accent) 48%, var(--theme-border));
   border-radius: 12px 4px 2px 12px;
   background:
-    linear-gradient(#a5badb, #a5badb) 14px 22px / 62% 2px no-repeat,
-    linear-gradient(#c3d1e6, #c3d1e6) 14px 36px / 69% 1px no-repeat,
-    linear-gradient(#c3d1e6, #c3d1e6) 14px 46px / 69% 1px no-repeat,
-    linear-gradient(#a8bffc, #a8bffc) 12px 55px / 57% 9px no-repeat,
-    linear-gradient(#c3d1e6, #c3d1e6) 14px 70px / 52% 1px no-repeat,
-    #fcfdff;
-  box-shadow: 0 5px 0 #d5e1f5, 0 6px 0 #8fa9d5;
+    linear-gradient(color-mix(in srgb, var(--theme-accent) 40%, var(--theme-border)), color-mix(in srgb, var(--theme-accent) 40%, var(--theme-border))) 14px 22px / 62% 2px no-repeat,
+    linear-gradient(var(--theme-border), var(--theme-border)) 14px 36px / 69% 1px no-repeat,
+    linear-gradient(var(--theme-border), var(--theme-border)) 14px 46px / 69% 1px no-repeat,
+    linear-gradient(color-mix(in srgb, var(--theme-accent) 27%, var(--theme-raised)), color-mix(in srgb, var(--theme-accent) 27%, var(--theme-raised))) 12px 55px / 57% 9px no-repeat,
+    linear-gradient(var(--theme-border), var(--theme-border)) 14px 70px / 52% 1px no-repeat,
+    var(--theme-raised);
+  box-shadow: 0 5px 0 var(--theme-muted), 0 6px 0 color-mix(in srgb, var(--theme-accent) 48%, var(--theme-border));
   transform: skewY(6deg);
 }
 
 .learning-book span + span {
   border-radius: 4px 12px 12px 2px;
   background:
-    repeating-linear-gradient(#c3d1e6 0 1px, transparent 1px 10px) 14px 24px / 72% 48px no-repeat,
-    #fcfdff;
+    repeating-linear-gradient(var(--theme-border) 0 1px, transparent 1px 10px) 14px 24px / 72% 48px no-repeat,
+    var(--theme-raised);
   transform: skewY(-6deg);
 }
 
 .learning-review-count {
   align-self: center;
-  color: var(--home-muted);
+  color: var(--theme-secondary);
 }
 
 .learning-review-count strong {
   display: block;
   margin-bottom: 8px;
-  color: var(--home-accent-strong);
+  color: var(--theme-accent-strong);
   font-size: clamp(2.75rem, 6vw, 4.5rem);
   font-weight: 750;
   font-variant-numeric: tabular-nums;
@@ -242,31 +237,31 @@ h1 {
   gap: 20px;
   min-height: 46px;
   padding: 8px 16px;
-  border: 1px solid #a3b9df;
+  border: 1px solid var(--theme-border-strong);
   border-radius: 9px;
-  color: var(--home-accent-strong);
+  color: var(--theme-accent-strong);
   font-weight: 700;
 }
 
 .learning-link:hover {
-  border-color: var(--home-accent);
-  background: #eef4ff;
+  border-color: var(--theme-accent);
+  background: var(--theme-accent-soft);
 }
 
 .learning-link-primary {
-  border-color: var(--home-accent);
-  color: #fff;
-  background: var(--home-accent);
+  border-color: var(--theme-accent);
+  color: var(--theme-on-accent);
+  background: var(--theme-accent);
 }
 
 .learning-link-primary:hover {
-  border-color: var(--home-accent-strong);
-  background: var(--home-accent-strong);
+  border-color: var(--theme-accent-strong);
+  background: var(--theme-accent-strong);
 }
 
 .learning-link:focus-visible,
 .learning-language:focus-visible {
-  outline-color: var(--home-accent);
+  outline-color: var(--theme-accent);
 }
 
 @media (max-width: 640px) {

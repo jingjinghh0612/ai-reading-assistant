@@ -1,9 +1,13 @@
 <template>
-  <div class="reader-workspace">
+  <div class="reader-workspace" :style="{ '--workspace-font-size': `${readerFontSize}px` }">
     <ReaderWorkspaceTopbar
+      :inert="isDictionaryDrawerOpen"
       :book="currentBook"
       :chapter="currentChapter"
-      :show-translation="showTranslation"
+      :is-sidebar-open="isSidebarOpen"
+      :is-dictionary-open="isDictionaryOpen"
+      :is-focus-mode="isFocusMode"
+      :font-size="readerFontSize"
       :show-highlight="showHighlight"
       :highlight-colors="highlightColors"
       :is-highlight-mode="isHighlightMode"
@@ -11,7 +15,10 @@
       :is-highlight-clear-mode="isHighlightClearMode"
       :paste-message="pasteArticleMessage"
       :paste-message-type="pasteArticleMessageType"
-      @toggle-translation="showTranslation = !showTranslation"
+      @toggle-sidebar="toggleSidebar"
+      @toggle-dictionary="toggleDictionary"
+      @toggle-focus="toggleFocusMode"
+      @update:font-size="readerFontSize = saveReaderFontSize($event)"
       @toggle-highlight-visibility="showHighlight = !showHighlight"
       @toggle-highlight-mode="toggleHighlightMode"
       @select-highlight-color="selectHighlightColor"
@@ -19,8 +26,14 @@
       @paste-article="openPasteEditor"
     />
 
-    <div class="workspace-layout">
+    <div
+      class="workspace-layout"
+      :class="{ 'has-sidebar': isSidebarOpen, 'has-dictionary': isDictionaryOpen }"
+    >
       <ReaderWorkspaceSidebar
+        v-if="isSidebarOpen"
+        id="workspace-directory"
+        :inert="isDictionaryDrawerOpen"
         :books="books"
         :chapters="chapters"
         :active-book-id="activeBookId"
@@ -32,7 +45,13 @@
         @delete-book="deleteImportedBook"
       />
 
-      <main class="workspace-reading-area" aria-label="英语阅读区">
+      <main
+        ref="readingArea"
+        class="workspace-reading-area"
+        :inert="isDictionaryDrawerOpen"
+        aria-label="英语阅读区"
+        @click="dismissDictionaryFromReadingArea"
+      >
         <ReaderWorkspaceBookImportPanel
           v-if="isBookImportOpen"
           :title="bookImportTitle"
@@ -58,7 +77,6 @@
           v-else-if="currentChapter"
           :chapter="currentChapter"
           :paragraphs="displayParagraphs"
-          :show-translation="showTranslation"
           :show-highlight="showHighlight"
           :sentence-highlights="currentChapterHighlights"
           :is-highlight-mode="isHighlightMode"
@@ -68,6 +86,7 @@
           :selected-paragraph-id="selectedParagraphId"
           @select-word="selectWord"
           @select-sentence="selectSentence"
+          @close-sentence-translation="clearSentenceSelection"
           @retry-translation="retryParagraphTranslation"
           @retry-sentence-translation="retrySentenceTranslation"
           @translate-paragraph="translateParagraph"
@@ -84,7 +103,17 @@
         </section>
       </main>
 
+      <div
+        v-if="isDictionaryDrawerOpen"
+        class="workspace-dictionary-backdrop"
+        aria-hidden="true"
+        @click="closeDictionary()"
+      ></div>
       <ReaderWorkspaceVocabularyPanel
+        v-if="isDictionaryOpen"
+        id="workspace-dictionary"
+        :is-drawer="isDictionaryDrawerOpen"
+        :is-pinned="isDictionaryPinned"
         :word="selectedWordEntry"
         :vocabulary="chapterVocabulary"
         :session-vocabulary="sessionVocabulary"
@@ -98,13 +127,15 @@
         @remove-word="removeWordFromVocabulary"
         @retry-word="retrySelectedWordLookup"
         @show-session-vocabulary="clearSelectedWord"
+        @toggle-pin="isDictionaryPinned = !isDictionaryPinned"
+        @close="closeDictionary()"
       />
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { requestWordLookup } from '../api/wordLookup.js'
 import ReaderWorkspaceVocabularyPanel from '../components/reader-workspace/ReaderWorkspaceVocabularyPanel.vue'
 import ReaderWorkspaceBookImportPanel from '../components/reader-workspace/ReaderWorkspaceBookImportPanel.vue'
@@ -133,6 +164,7 @@ import {
   toggleSentenceHighlight,
 } from '../data/readerWorkspaceSelectors.js'
 import { readClipboardText } from '../utils/clipboard.js'
+import { getInitialReaderFontSize, saveReaderFontSize } from '../utils/readerFontSize.js'
 import { isWordSaved, removeVocabularyWord, saveVocabularyWord } from '../utils/vocabulary.js'
 import { normalizeWord } from '../utils/word.js'
 import {
@@ -166,7 +198,17 @@ function createInitialHighlights() {
 
 const activeBookId = ref('quiet-observatory')
 const activeChapterId = ref('chapter-4')
-const showTranslation = ref(true)
+const readerFontSize = ref(getInitialReaderFontSize())
+const wideWorkspace = window.matchMedia('(min-width: 1041px)')
+const isWideWorkspace = ref(wideWorkspace.matches)
+const readingArea = ref(null)
+const sidebarPreference = ref(null)
+const isFocusMode = ref(false)
+const isDictionaryOpen = ref(false)
+const isDictionaryPinned = ref(false)
+const isSidebarOpen = computed(() => !isFocusMode.value && (sidebarPreference.value ?? isWideWorkspace.value))
+const isDictionaryDrawerOpen = computed(() => isDictionaryOpen.value && !isWideWorkspace.value)
+let dictionaryTrigger = null
 const showHighlight = ref(true)
 const isHighlightMode = ref(false)
 const activeHighlightColorId = ref(defaultHighlightColorId)
@@ -409,6 +451,105 @@ function handleSentenceHighlightToggle(sentenceId) {
   setCurrentChapterHighlights(nextChapterHighlights)
 }
 
+async function preserveReadingPosition(update, preferredAnchor) {
+  const area = readingArea.value
+  let anchor = null
+  if (area && isWideWorkspace.value) {
+    const viewport = area.getBoundingClientRect()
+    const isVisible = (element) => {
+      const bounds = element.getBoundingClientRect()
+      return bounds.bottom > viewport.top && bounds.top < viewport.bottom
+    }
+    anchor = preferredAnchor && area.contains(preferredAnchor) && isVisible(preferredAnchor)
+      ? preferredAnchor
+      : Array.from(area.querySelectorAll('.sentence-shell')).find(isVisible)
+  }
+  const top = anchor?.getBoundingClientRect().top
+
+  update()
+  await nextTick()
+  if (anchor?.isConnected) {
+    // 栏宽变化会重新折行，按原文位置补偿滚动距离。
+    area.scrollTop += anchor.getBoundingClientRect().top - top
+  }
+}
+
+function toggleSidebar() {
+  preserveReadingPosition(() => {
+    sidebarPreference.value = !isSidebarOpen.value
+    isFocusMode.value = false
+  })
+}
+
+function toggleFocusMode() {
+  preserveReadingPosition(() => {
+    isFocusMode.value = !isFocusMode.value
+    if (isFocusMode.value) {
+      resetDictionary()
+    }
+  })
+}
+
+function focusDictionary() {
+  document.getElementById('workspace-dictionary-close')?.focus({ preventScroll: true })
+}
+
+async function openDictionary(event) {
+  const trigger = event?.currentTarget
+  if (trigger && !trigger.closest('#workspace-dictionary')) {
+    dictionaryTrigger = trigger
+  }
+  if (isDictionaryOpen.value) {
+    return
+  }
+  await preserveReadingPosition(() => {
+    isDictionaryOpen.value = true
+  }, trigger)
+  if (event?.detail === 0 && isWideWorkspace.value) {
+    focusDictionary()
+  }
+}
+
+function resetDictionary() {
+  isDictionaryOpen.value = false
+  isDictionaryPinned.value = false
+  dictionaryTrigger = null
+  clearSelectedWord()
+}
+
+async function closeDictionary(restoreFocus = true) {
+  const trigger = dictionaryTrigger
+  await preserveReadingPosition(resetDictionary, trigger)
+  if (restoreFocus) {
+    const focusTarget = trigger?.isConnected ? trigger : document.getElementById('workspace-dictionary-toggle')
+    focusTarget?.focus({ preventScroll: true })
+  }
+}
+
+function toggleDictionary(event) {
+  return isDictionaryOpen.value ? closeDictionary() : openDictionary(event)
+}
+
+function dismissDictionaryFromReadingArea(event) {
+  if (!isDictionaryOpen.value || isDictionaryPinned.value || window.getSelection()?.isCollapsed === false) {
+    return
+  }
+  if (!event.target.closest('.sentence-shell, .sentence-translation-text, .translation-text, button, a, input, textarea')) {
+    closeDictionary(false)
+  }
+}
+
+function updateWorkspaceWidth(event) {
+  isWideWorkspace.value = event.matches
+}
+
+function handleWorkspaceKeydown(event) {
+  if (event.key === 'Escape' && !event.defaultPrevented && isDictionaryOpen.value) {
+    event.preventDefault()
+    closeDictionary()
+  }
+}
+
 function selectBook(bookId) {
   const nextBook = findBook(books.value, bookId)
 
@@ -428,6 +569,9 @@ function selectBook(bookId) {
 }
 
 function selectChapter(chapterId) {
+  if (!isWideWorkspace.value) {
+    sidebarPreference.value = false
+  }
   activeChapterId.value = chapterId
   isPastedArticleActive.value = false
   isPasteEditorOpen.value = false
@@ -539,7 +683,7 @@ function activateTemporaryImportedBook(importedBook, existingImportedBooks = [])
   pasteArticleMessageType.value = 'error'
 }
 
-async function selectWord(selection) {
+async function selectWord(selection, event) {
   const wordSelection = typeof selection === 'string' ? { wordKey: selection } : selection
 
   selectedWordKey.value = wordSelection?.wordKey || null
@@ -552,10 +696,12 @@ async function selectWord(selection) {
     return
   }
 
+  openDictionary(event)
+  isWordLoading.value = false
+  loadingWord.value = ''
+
   if (builtInDictionary[selectedWordKey.value]) {
     currentWordRequestId += 1
-    isWordLoading.value = false
-    loadingWord.value = ''
     return
   }
 
@@ -705,6 +851,9 @@ function closePasteEditor() {
 }
 
 function openBookImport() {
+  if (!isWideWorkspace.value) {
+    sidebarPreference.value = false
+  }
   isBookImportOpen.value = true
   isPasteEditorOpen.value = false
   isPastedArticleActive.value = false
@@ -847,7 +996,29 @@ function getBookImportMessage(reason) {
 
 loadImportedBooksIntoShelf()
 
+onMounted(() => {
+  wideWorkspace.addEventListener('change', updateWorkspaceWidth)
+  window.addEventListener('keydown', handleWorkspaceKeydown)
+})
+
+onUnmounted(() => {
+  wideWorkspace.removeEventListener('change', updateWorkspaceWidth)
+  window.removeEventListener('keydown', handleWorkspaceKeydown)
+})
+
+watch(isDictionaryDrawerOpen, (open) => {
+  if (open) {
+    focusDictionary()
+  }
+}, { flush: 'post' })
+
 watch(currentChapterContent, () => {
   clearSentenceSelection()
+  if (isDictionaryOpen.value && !isDictionaryPinned.value) {
+    resetDictionary()
+  }
+  if (readingArea.value) {
+    readingArea.value.scrollTop = 0
+  }
 })
 </script>
