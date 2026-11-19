@@ -21,6 +21,7 @@
           >
             <span
               class="sentence-shell"
+              :data-reader-sentence-id="sentence.id"
               :class="getSentenceHighlightClass(sentence)"
               :role="isHighlightMode ? 'button' : null"
               :tabindex="isHighlightMode ? 0 : null"

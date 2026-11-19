@@ -468,33 +468,6 @@
   border-top: 1px solid var(--workspace-border);
 }
 
-.progress-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.progress-metric {
-  padding: 6px 0;
-}
-
-.progress-metric strong,
-.progress-metric span {
-  display: block;
-}
-
-.progress-metric strong {
-  color: var(--workspace-text);
-  font-size: 19px;
-  line-height: 1;
-}
-
-.progress-metric span {
-  margin-top: 4px;
-  color: var(--workspace-soft);
-  font-size: 11px;
-}
-
 .progress-block {
   display: grid;
   gap: 7px;

@@ -560,7 +560,7 @@ describe('reader workspace word definition panel contract', () => {
       readerWorkspaceSource,
       /findBookChapterContent\([\s\S]*chapterContentById\.value,[\s\S]*currentBook\.value,[\s\S]*activeChapterId\.value,[\s\S]*fallbackChapterId,[\s\S]*\)/,
     )
-    assert.match(readerWorkspaceSource, /v-else-if="currentChapter"/)
+    assert.match(readerWorkspaceSource, /v-else-if="isReaderReady && currentChapter"/)
     assert.match(readerWorkspaceSource, /workspace-empty-book/)
     assert.match(readerWorkspaceSource, /getChapters\(currentBook\.value\)/)
     assert.match(workspaceStyleSource, /\.workspace-empty-book/)
@@ -621,7 +621,7 @@ describe('reader workspace word definition panel contract', () => {
     assert.match(readerWorkspaceSource, /const importedBooks = ref\(\[\]\)/)
     assert.match(readerWorkspaceSource, /loadImportedBooksIntoShelf\(\)/)
     assert.match(readerWorkspaceSource, /async function loadImportedBooksIntoShelf/)
-    assert.match(readerWorkspaceSource, /await loadImportedBooks\(\)/)
+    assert.match(readerWorkspaceSource, /await Promise\.all\(\[loadImportedBooks\(\), progress\.loadCoverage\(\)\]\)/)
     assert.match(readerWorkspaceSource, /const books = computed\(\(\) => \[\.\.\.importedBooks\.value,\s*\.\.\.builtInBooks\]\)/)
     assert.match(readerWorkspaceSource, /:books="books"/)
     assert.match(readerWorkspaceSource, /@select-book="selectBook"/)
@@ -639,7 +639,7 @@ describe('reader workspace word definition panel contract', () => {
     assert.match(readerWorkspaceSource, /activateTemporaryImportedBook\(importedBook,\s*result\.books\)/)
     assert.match(readerWorkspaceSource, /已临时导入，但无法保存到本地书架/)
     assert.match(readerWorkspaceSource, /activeBookId\.value\s*=\s*importedBook\.id/)
-    assert.match(readerWorkspaceSource, /activeChapterId\.value\s*=\s*importedBook\.chapters\[0\]\?\.id/)
+    assert.match(readerWorkspaceSource, /activeChapterId\.value\s*=\s*progress\.getResumeChapterId\(importedBook\)/)
     assert.doesNotMatch(readerWorkspaceSource, /难度/)
     assert.doesNotMatch(readerWorkspaceSource, /备注/)
   })
