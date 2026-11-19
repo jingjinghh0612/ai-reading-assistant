@@ -9,6 +9,8 @@ import {
   findChapterContent,
   getChapters,
   getChapterParagraphs,
+  getChapterReadingSummary,
+  getChapterSentenceIds,
   getReadingProgress,
   mapDictionaryEntryToWordPanel,
   mapWordLookupDetailToWordPanel,
@@ -138,12 +140,22 @@ describe('reader workspace selectors', () => {
 
   it('derives paragraphs and reading progress without page-specific logic', () => {
     const book = findBook(builtInBooks, 'quiet-observatory')
-    const chapter = findChapter(book.chapters, 'chapter-4', builtInChapterContent['chapter-4'])
+    const chapters = book.chapters.map((chapter) => {
+      const sentenceIds = getChapterSentenceIds(builtInChapterContent[chapter.id])
+      const readIds = chapter.id === 'chapter-4'
+        ? new Set([sentenceIds[0], sentenceIds[4], 'missing-sentence'])
+        : new Set()
+      return getChapterReadingSummary(chapter, sentenceIds, readIds)
+    })
 
     assert.equal(getChapterParagraphs(builtInChapterContent['chapter-4']).length, 3)
     assert.deepEqual(getChapterParagraphs(null), [])
-    assert.deepEqual(getReadingProgress(book, chapter), { book: 64, chapter: 72 })
-    assert.deepEqual(getReadingProgress(null, null), { book: 0, chapter: 0 })
+    assert.equal(chapters[0].sentenceCount, 4)
+    assert.equal(chapters[0].status, '待读')
+    assert.equal(chapters[1].status, '阅读中')
+    assert.deepEqual(getReadingProgress(chapters, 'chapter-4'), { book: 11, chapter: 33 })
+    assert.deepEqual(getReadingProgress(chapters, 'chapter-6'), { book: 11, chapter: 0 })
+    assert.deepEqual(getReadingProgress([], null), { book: 0, chapter: 0 })
   })
 
   it('uses dictionary ids as word keys while preserving surface forms', () => {

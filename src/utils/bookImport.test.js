@@ -5,7 +5,9 @@ import {
   appendImportedBook,
   createImportedBookFromText,
   getImportedChapterContentById,
+  loadReadingCoverage,
   loadImportedBooks,
+  mergeReadingCoverage,
   removeImportedBook,
   saveImportedBooks,
 } from './bookImport.js'
@@ -77,7 +79,7 @@ function installIndexedDB() {
       transaction(storeNames) {
         const names = Array.isArray(storeNames) ? storeNames : [storeNames]
 
-        return {
+        const transaction = {
           objectStore(name) {
             if (!names.includes(name) || !state.stores.has(name)) {
               throw new Error(`Missing object store: ${name}`)
@@ -86,6 +88,8 @@ function installIndexedDB() {
             return createObjectStore(state.stores.get(name))
           },
         }
+        setImmediate(() => transaction.oncomplete?.())
+        return transaction
       },
       close() {},
     }
@@ -153,6 +157,22 @@ describe('book import utilities', () => {
   beforeEach(() => {
     installLocalStorage()
     installIndexedDB()
+  })
+
+  it('merges reading coverage and removes it with the imported book', async () => {
+    const book = createImportedBookFromText({ title: 'Reading coverage', text: 'One sentence. Another sentence.' })
+    await appendImportedBook(book)
+    const chapterId = book.chapters[0].id
+    const context = { bookId: book.id, chapterId, requiresImportedBook: true }
+    const [first, second] = book.chapterContents[chapterId].paragraphs[0].sentences
+
+    assert.deepEqual(await mergeReadingCoverage({ ...context, sentenceIds: [first.id] }), [first.id])
+    assert.deepEqual(await mergeReadingCoverage({ ...context, sentenceIds: [first.id, second.id] }), [first.id, second.id])
+    assert.equal((await loadReadingCoverage()).length, 1)
+
+    assert.equal((await removeImportedBook(book.id)).deleted, true)
+    assert.deepEqual(await loadReadingCoverage(), [])
+    assert.equal(await mergeReadingCoverage({ ...context, sentenceIds: [first.id] }), null)
   })
 
   it('creates a real local book with chapters from imported file text', () => {

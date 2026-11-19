@@ -14,3 +14,11 @@ export function setStorageItem(key, value) {
     return false
   }
 }
+
+export function removeStorageItem(key) {
+  try {
+    localStorage.removeItem(key)
+  } catch {
+    // 阅读位置仍可在当前页面中使用。
+  }
+}

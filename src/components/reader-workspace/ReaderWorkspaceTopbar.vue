@@ -1,61 +1,56 @@
 <template>
   <header class="workspace-topbar" aria-label="AI Reading workspace">
     <RouterLink class="workspace-brand" :to="{ name: 'home' }" aria-label="AI Reading，返回首页" title="返回首页">
-      <span class="workspace-brand-mark" aria-hidden="true">AI</span>
-      <span class="workspace-brand-copy">
-        <strong>Reading</strong>
-        <small>智能精读工作台</small>
-      </span>
+      <strong>Reading</strong>
     </RouterLink>
 
-    <button class="workspace-book-select" type="button" :title="book.title">
-      <span class="book-select-icon" aria-hidden="true">Book</span>
-      <span class="book-select-copy">
-        <strong>{{ book.title }}</strong>
-        <small v-if="chapter">Chapter {{ chapter.number }} · {{ chapter.title }}</small>
-        <small v-else>暂无章节</small>
-      </span>
-      <span class="book-select-caret" aria-hidden="true">⌄</span>
-    </button>
+    <div class="workspace-book-context" :title="book.title">
+      <strong>{{ book.title }}</strong>
+      <span v-if="chapter">第 {{ chapter.number }} 章</span>
+    </div>
 
     <nav class="workspace-toolstrip" aria-label="阅读工具栏">
       <div class="toolstrip-shell">
+        <div class="toolstrip-group workspace-view-controls" aria-label="阅读布局">
+          <ReaderWorkspaceToolbarButton
+            label="目录"
+            icon="panel-left"
+            :aria-expanded="isSidebarOpen"
+            :aria-controls="isSidebarOpen ? 'workspace-directory' : undefined"
+            @click="$emit('toggle-sidebar')"
+          />
+          <ReaderWorkspaceToolbarButton
+            id="workspace-dictionary-toggle"
+            label="词典"
+            icon="book-open-text"
+            :aria-expanded="isDictionaryOpen"
+            :aria-controls="isDictionaryOpen ? 'workspace-dictionary' : undefined"
+            @click="$emit('toggle-dictionary', $event)"
+          />
+          <ReaderWorkspaceAppearance :font-size="fontSize" @update:font-size="$emit('update:font-size', $event)" />
+          <ReaderWorkspaceToolbarButton
+            label="专注模式"
+            icon="focus"
+            :aria-pressed="isFocusMode"
+            @click="$emit('toggle-focus')"
+          />
+        </div>
         <div class="toolstrip-group reading-group" aria-label="阅读标记">
-          <button
-            class="toolstrip-button"
-            :class="{ active: showHighlight }"
-            type="button"
+          <ReaderWorkspaceToolbarButton
+            label="显示高亮"
+            :icon="showHighlight ? 'eye' : 'eye-off'"
             :aria-pressed="showHighlight"
-            title="显示高亮"
             @click="$emit('toggle-highlight-visibility')"
-          >
-            <span class="tool-icon" aria-hidden="true">
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 11.5 10.6 3.9 13.1 6.4 5.5 14H3v-2.5Z" />
-                <path d="M9.2 5.3 11.7 7.8" />
-              </svg>
-            </span>
-            <span class="tool-label">显示高亮</span>
-          </button>
+          />
 
-          <button
-            class="toolstrip-button"
-            :class="{ active: isHighlightMode }"
-            type="button"
+          <ReaderWorkspaceToolbarButton
+            label="高亮笔"
+            icon="highlighter"
             :aria-pressed="isHighlightMode"
-            title="高亮笔"
             @click="$emit('toggle-highlight-mode')"
-          >
-            <span class="tool-icon" aria-hidden="true">
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M10.6 2.7 13.3 5.4 6.4 12.3 3.2 13 3.7 9.7 10.6 2.7Z" />
-                <path d="M2.7 13.2h7.6" />
-              </svg>
-            </span>
-            <span class="tool-label">高亮笔</span>
-          </button>
+          />
 
-          <div class="highlight-color-swatches" aria-label="高亮颜色">
+          <div v-if="isHighlightMode" class="highlight-color-swatches" aria-label="高亮颜色">
             <button
               v-for="color in highlightColors"
               :key="color.id"
@@ -71,6 +66,7 @@
           </div>
 
           <button
+            v-if="isHighlightMode"
             class="highlight-clear-button"
             :class="{ active: isHighlightClearMode }"
             type="button"
@@ -81,46 +77,12 @@
           </button>
         </div>
 
-        <div class="toolstrip-group translation-group" aria-label="译文">
-          <button
-            class="toolstrip-button"
-            :class="{ active: showTranslation, 'switch-on': showTranslation }"
-            type="button"
-            :aria-pressed="showTranslation"
-            @click="$emit('toggle-translation')"
-          >
-            <span class="tool-icon" aria-hidden="true">
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M2.7 4h6.6" />
-                <path d="M6 2.7V4" />
-                <path d="M4.1 4c.5 1.7 1.5 3 3.1 3.9" />
-                <path d="M8.6 4c-.5 1.5-1.5 2.8-3.1 3.8" />
-                <path d="m8.4 13.3 2.2-5.8 2.2 5.8" />
-                <path d="M9.2 11.3H12" />
-              </svg>
-            </span>
-            <span class="tool-label">{{ showTranslation ? '译文开' : '译文关' }}</span>
-          </button>
-        </div>
-
         <div class="toolstrip-group import-group" aria-label="文章导入">
-          <button
-            class="toolstrip-button"
-            type="button"
-            title="粘贴文章"
+          <ReaderWorkspaceToolbarButton
+            label="粘贴文章"
+            icon="clipboard-paste"
             @click="$emit('paste-article')"
-          >
-            <span class="tool-icon" aria-hidden="true">
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M5.3 3.4h5.4" />
-                <path d="M6 2.4h4l.7 1H5.3l.7-1Z" />
-                <path d="M4 4.4h8v8.7H4z" />
-                <path d="M6 7h4" />
-                <path d="M6 9.4h3" />
-              </svg>
-            </span>
-            <span class="tool-label">粘贴文章</span>
-          </button>
+          />
         </div>
 
         <p
@@ -137,6 +99,8 @@
 
 <script setup>
 import { RouterLink } from 'vue-router'
+import ReaderWorkspaceAppearance from './ReaderWorkspaceAppearance.vue'
+import ReaderWorkspaceToolbarButton from './ReaderWorkspaceToolbarButton.vue'
 
 defineProps({
   book: {
@@ -147,10 +111,10 @@ defineProps({
     type: Object,
     default: null,
   },
-  showTranslation: {
-    type: Boolean,
-    required: true,
-  },
+  isSidebarOpen: Boolean,
+  isDictionaryOpen: Boolean,
+  isFocusMode: Boolean,
+  fontSize: { type: Number, required: true },
   showHighlight: {
     type: Boolean,
     required: true,
@@ -182,7 +146,10 @@ defineProps({
 })
 
 defineEmits([
-  'toggle-translation',
+  'toggle-sidebar',
+  'toggle-dictionary',
+  'toggle-focus',
+  'update:font-size',
   'toggle-highlight-visibility',
   'toggle-highlight-mode',
   'select-highlight-color',

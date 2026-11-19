@@ -74,7 +74,7 @@
           <span class="chapter-index">{{ chapter.number }}</span>
           <span class="chapter-copy">
             <strong>{{ chapter.title }}</strong>
-            <small>{{ chapter.id === activeChapterId ? '当前章节' : chapter.status }} · {{ chapter.sentenceCount }} 句</small>
+            <small>{{ chapter.status }} · {{ chapter.sentenceCount }} 句</small>
           </span>
         </button>
       </div>
@@ -83,23 +83,12 @@
     <section class="workspace-panel progress-panel">
       <div class="panel-heading-row">
         <h2>阅读进度</h2>
-        <span class="panel-count">本地</span>
+        <span class="panel-count">{{ isTemporary ? '本次阅读' : '本地' }}</span>
       </div>
 
-      <div class="progress-grid">
-        <div class="progress-metric">
-          <strong>{{ progress.book }}%</strong>
-          <span>本书</span>
-        </div>
-        <div class="progress-metric">
-          <strong>{{ progress.chapter }}%</strong>
-          <span>本章</span>
-        </div>
-      </div>
-
-      <div class="progress-block">
+      <div v-if="!isArticle" class="progress-block">
         <div class="progress-label">
-          <span>阅读覆盖</span>
+          <span>本书</span>
           <strong>{{ progress.book }}%</strong>
         </div>
         <div class="progress-track" aria-hidden="true">
@@ -109,7 +98,7 @@
 
       <div class="progress-block">
         <div class="progress-label">
-          <span>句子精读</span>
+          <span>{{ isArticle ? '本文' : '本章' }}</span>
           <strong>{{ progress.chapter }}%</strong>
         </div>
         <div class="progress-track chapter" aria-hidden="true">
@@ -142,6 +131,8 @@ defineProps({
     type: Object,
     required: true,
   },
+  isArticle: Boolean,
+  isTemporary: Boolean,
 })
 
 defineEmits(['select-book', 'select-chapter', 'import-book', 'delete-book'])

@@ -1,20 +1,43 @@
 <template>
-  <aside class="workspace-vocabulary-panel word-definition-panel" aria-label="单词释义">
+  <aside
+    class="workspace-vocabulary-panel"
+    :role="isDrawer ? 'dialog' : undefined"
+    :aria-modal="isDrawer ? 'true' : undefined"
+    aria-labelledby="workspace-dictionary-title"
+    @keydown.tab="cycleDrawerFocus"
+  >
     <header class="word-panel-header">
-      <div>
-        <p>本地词典</p>
-        <h2>单词释义</h2>
+      <h2 id="workspace-dictionary-title">词典</h2>
+      <div class="word-panel-controls">
+        <button
+          v-if="!isDrawer"
+          class="word-panel-control"
+          type="button"
+          :aria-pressed="isPinned"
+          @click="$emit('toggle-pin')"
+        >
+          保持展开
+        </button>
+        <button
+          id="workspace-dictionary-close"
+          class="word-panel-control"
+          type="button"
+          aria-label="关闭词典"
+          @click="$emit('close')"
+        >
+          关闭
+        </button>
       </div>
     </header>
 
-    <div class="word-panel-body">
+    <div ref="panelBody" class="word-panel-body">
       <section v-if="word" class="word-entry-card">
         <div class="word-entry-hero">
           <div class="word-title-group">
             <h3>{{ word.word }}</h3>
-            <span class="word-phonetic">{{ word.phonetic }}</span>
+            <span v-if="word.phonetic" class="word-phonetic">{{ word.phonetic }}</span>
           </div>
-          <span class="word-part">{{ word.partOfSpeech }}</span>
+          <span v-if="word.partOfSpeech" class="word-part">{{ word.partOfSpeech }}</span>
         </div>
 
         <p class="word-meaning">{{ word.meaning }}</p>
@@ -31,7 +54,7 @@
         </div>
 
         <dl class="word-detail-list">
-          <div>
+          <div v-if="word.example">
             <dt>例句</dt>
             <dd>
               <p class="word-example-text">{{ word.example }}</p>
@@ -82,7 +105,7 @@
           <strong>本章重点词</strong>
           <span>{{ vocabulary.length }} 个</span>
         </div>
-        <p>点击词条查看释义，并定位到它在正文中首次出现的段落。</p>
+        <p>点击词条查看释义。</p>
 
         <div class="chapter-vocabulary-list">
           <button
@@ -142,7 +165,11 @@
 </template>
 
 <script setup>
-defineProps({
+import { ref, watch } from 'vue'
+
+const props = defineProps({
+  isDrawer: Boolean,
+  isPinned: Boolean,
   word: {
     type: Object,
     default: null,
@@ -177,5 +204,29 @@ defineProps({
   },
 })
 
-defineEmits(['add-word', 'remove-word', 'select-word', 'retry-word', 'show-session-vocabulary'])
+defineEmits(['add-word', 'remove-word', 'select-word', 'retry-word', 'show-session-vocabulary', 'toggle-pin', 'close'])
+
+const panelBody = ref(null)
+
+watch(() => props.word?.word, () => {
+  if (panelBody.value) {
+    panelBody.value.scrollTop = 0
+  }
+}, { flush: 'post' })
+
+function cycleDrawerFocus(event) {
+  if (!props.isDrawer) {
+    return
+  }
+
+  const buttons = event.currentTarget.querySelectorAll('button:not([disabled])')
+  const firstButton = buttons[0]
+  const lastButton = buttons[buttons.length - 1]
+  const boundary = event.shiftKey ? firstButton : lastButton
+  if (event.target === boundary) {
+    event.preventDefault()
+    const nextButton = event.shiftKey ? lastButton : firstButton
+    nextButton.focus()
+  }
+}
 </script>

@@ -7,9 +7,10 @@ import { decodeXmlText } from './bookFileParser.js'
 // 浏览器按这些固定字符串查找书架数据，保留原值以读取已有书籍。
 export const LEGACY_IMPORTED_BOOKS_STORAGE_KEY = 'ai-reading:reader-prototype:imported-books'
 const IMPORTED_BOOKS_DB_NAME = 'ai-reading-reader-prototype'
-const IMPORTED_BOOKS_DB_VERSION = 1
+const IMPORTED_BOOKS_DB_VERSION = 2
 const IMPORTED_BOOKS_STORE_NAME = 'importedBooks'
 const IMPORTED_BOOKS_META_STORE_NAME = 'metadata'
+const READING_PROGRESS_STORE_NAME = 'readingProgress'
 const IMPORTED_BOOKS_ORDER_KEY = 'bookOrder'
 let importedBooksDatabasePromise = null
 let importedBooksIndexedDbReference = null
@@ -187,7 +188,7 @@ function clearLegacyImportedBooks() {
   } catch {}
 }
 
-export async function saveImportedBooks(books) {
+export async function saveImportedBooks(books, deletedBook = null) {
   const normalizedBooks = Array.isArray(books) ? books.map(normalizeImportedBook).filter(Boolean) : []
   const database = await openImportedBooksDatabase()
 
@@ -196,18 +197,32 @@ export async function saveImportedBooks(books) {
   }
 
   try {
-    await clearObjectStore(database, IMPORTED_BOOKS_STORE_NAME)
+    const stores = [IMPORTED_BOOKS_STORE_NAME, IMPORTED_BOOKS_META_STORE_NAME]
+    if (deletedBook) {
+      stores.push(READING_PROGRESS_STORE_NAME)
+    }
+    const transaction = database.transaction(stores, 'readwrite')
+    const bookStore = transaction.objectStore(IMPORTED_BOOKS_STORE_NAME)
+    const finished = waitForTransaction(transaction)
 
+    bookStore.clear()
     for (const book of normalizedBooks) {
-      await putObjectStoreValue(database, IMPORTED_BOOKS_STORE_NAME, book)
+      bookStore.put(book)
     }
 
-    await putObjectStoreValue(database, IMPORTED_BOOKS_META_STORE_NAME, {
+    transaction.objectStore(IMPORTED_BOOKS_META_STORE_NAME).put({
       key: IMPORTED_BOOKS_ORDER_KEY,
       value: normalizedBooks.map((book) => book.id),
     })
 
-    return true
+    if (deletedBook) {
+      const progressStore = transaction.objectStore(READING_PROGRESS_STORE_NAME)
+      for (const chapter of deletedBook.chapters) {
+        progressStore.delete(getReadingProgressKey(deletedBook.id, chapter.id))
+      }
+    }
+
+    return await finished
   } catch {
     return false
   }
@@ -240,16 +255,17 @@ export async function appendImportedBook(book) {
 
 export async function removeImportedBook(bookId) {
   const existingBooks = await loadImportedBooks()
+  const deletedBook = existingBooks.find((book) => book.id === bookId)
   const nextBooks = existingBooks.filter((book) => book.id !== bookId)
 
-  if (nextBooks.length === existingBooks.length) {
+  if (!deletedBook) {
     return {
       deleted: false,
       books: existingBooks,
     }
   }
 
-  if (!(await saveImportedBooks(nextBooks))) {
+  if (!(await saveImportedBooks(nextBooks, deletedBook))) {
     return {
       deleted: false,
       books: existingBooks,
@@ -259,6 +275,63 @@ export async function removeImportedBook(bookId) {
   return {
     deleted: true,
     books: nextBooks,
+  }
+}
+
+export function getReadingProgressKey(bookId, chapterId) {
+  return JSON.stringify([bookId, chapterId])
+}
+
+export async function loadReadingCoverage() {
+  const database = await openImportedBooksDatabase()
+
+  try {
+    return database ? await getAllObjectStoreValues(database, READING_PROGRESS_STORE_NAME) : []
+  } catch {
+    return []
+  }
+}
+
+export async function mergeReadingCoverage({ bookId, chapterId, requiresImportedBook, sentenceIds }) {
+  const database = await openImportedBooksDatabase()
+  if (!database) {
+    return null
+  }
+
+  try {
+    const stores = [READING_PROGRESS_STORE_NAME]
+    if (requiresImportedBook) {
+      stores.push(IMPORTED_BOOKS_STORE_NAME)
+    }
+    const transaction = database.transaction(stores, 'readwrite')
+    const progressStore = transaction.objectStore(READING_PROGRESS_STORE_NAME)
+    const id = getReadingProgressKey(bookId, chapterId)
+    const finished = waitForTransaction(transaction)
+    let mergedSentenceIds = null
+
+    function merge() {
+      const request = progressStore.get(id)
+      request.onsuccess = () => {
+        const previousIds = Array.isArray(request.result?.sentenceIds) ? request.result.sentenceIds : []
+        mergedSentenceIds = [...new Set([...previousIds, ...sentenceIds])]
+        progressStore.put({ id, sentenceIds: mergedSentenceIds })
+      }
+    }
+
+    if (requiresImportedBook) {
+      const request = transaction.objectStore(IMPORTED_BOOKS_STORE_NAME).get(bookId)
+      request.onsuccess = () => {
+        if (request.result?.chapters?.some((chapter) => chapter.id === chapterId)) {
+          merge()
+        }
+      }
+    } else {
+      merge()
+    }
+
+    return await finished ? mergedSentenceIds : null
+  } catch {
+    return null
   }
 }
 
@@ -314,6 +387,12 @@ async function openImportedBooksDatabase() {
   if (!importedBooksDatabasePromise) {
     importedBooksDatabasePromise = new Promise((resolve) => {
       const request = indexedDB.open(IMPORTED_BOOKS_DB_NAME, IMPORTED_BOOKS_DB_VERSION)
+      let blocked = false
+
+      request.onblocked = () => {
+        blocked = true
+        resolve(null)
+      }
 
       request.onupgradeneeded = (event) => {
         const database = event.target.result
@@ -325,10 +404,22 @@ async function openImportedBooksDatabase() {
         if (!database.objectStoreNames.contains(IMPORTED_BOOKS_META_STORE_NAME)) {
           database.createObjectStore(IMPORTED_BOOKS_META_STORE_NAME, { keyPath: 'key' })
         }
+
+        if (!database.objectStoreNames.contains(READING_PROGRESS_STORE_NAME)) {
+          database.createObjectStore(READING_PROGRESS_STORE_NAME, { keyPath: 'id' })
+        }
       }
 
       request.onsuccess = () => {
-        resolve(request.result)
+        const database = request.result
+        database.onversionchange = () => {
+          database.close()
+          importedBooksDatabasePromise = null
+        }
+        if (blocked) {
+          importedBooksDatabasePromise = Promise.resolve(database)
+        }
+        resolve(database)
       }
 
       request.onerror = () => {
@@ -365,12 +456,11 @@ function getAllObjectStoreValues(database, storeName) {
   return requestToPromise(getObjectStore(database, storeName).getAll())
 }
 
-function putObjectStoreValue(database, storeName, value) {
-  return requestToPromise(getObjectStore(database, storeName, 'readwrite').put(value))
-}
-
-function clearObjectStore(database, storeName) {
-  return requestToPromise(getObjectStore(database, storeName, 'readwrite').clear())
+function waitForTransaction(transaction) {
+  return new Promise((resolve) => {
+    transaction.oncomplete = () => resolve(true)
+    transaction.onabort = () => resolve(false)
+  })
 }
 
 export function getImportedChapterContentById(books) {

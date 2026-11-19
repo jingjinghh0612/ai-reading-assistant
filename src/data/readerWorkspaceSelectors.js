@@ -104,10 +104,47 @@ export function createTranslationStateKey(chapterId, paragraphId, itemId) {
   return `${chapterId || 'chapter'}:${paragraphId || 'paragraph'}:${itemId || ''}`
 }
 
-export function getReadingProgress(book, chapter) {
+export function getChapterSentenceIds(chapterContent) {
+  return getChapterParagraphs(chapterContent).flatMap((paragraph) =>
+    paragraph.sentences.map((sentence) => sentence.id),
+  )
+}
+
+export function getChapterReadingSummary(chapter, sentenceIds, readSentenceIds) {
+  const sentenceCount = sentenceIds.length
+  const readCount = readSentenceIds
+    ? sentenceIds.filter((id) => readSentenceIds.has(id)).length
+    : 0
+
   return {
-    book: book?.progress || 0,
-    chapter: chapter?.progress || 0,
+    ...chapter,
+    sentenceCount,
+    readCount,
+    status: getChapterReadingStatus(readCount, sentenceCount),
+  }
+}
+
+function getChapterReadingStatus(readCount, sentenceCount) {
+  if (!readCount) {
+    return '待读'
+  }
+  return readCount === sentenceCount ? '已完成' : '阅读中'
+}
+
+function getReadPercent(readCount, sentenceCount) {
+  return sentenceCount ? Math.floor((readCount / sentenceCount) * 100) : 0
+}
+
+export function getReadingProgress(chapters, activeChapterId) {
+  const chapter = chapters.find((item) => item.id === activeChapterId)
+  const totals = chapters.reduce((result, item) => ({
+    readCount: result.readCount + item.readCount,
+    sentenceCount: result.sentenceCount + item.sentenceCount,
+  }), { readCount: 0, sentenceCount: 0 })
+
+  return {
+    book: getReadPercent(totals.readCount, totals.sentenceCount),
+    chapter: chapter ? getReadPercent(chapter.readCount, chapter.sentenceCount) : 0,
   }
 }
 
